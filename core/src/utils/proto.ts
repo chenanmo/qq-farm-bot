@@ -295,6 +295,13 @@ async function loadProto(): Promise<void> {
         types[name] = root.lookupType(`gamepb.activitypb.${name}`);
     }
     types.CharityRedFlowerProgressRewardResult = root.lookupType('gamepb.activitypb.CharityRedFlowerProgressRewardResult');
+    for (const name of [
+        'YshfState', 'YshfCatalog', 'YshfClaimSeedRequest', 'YshfShopQueryRequest',
+        'YshfSellRequest', 'YshfExchangeRequest', 'YshfRecordRequest',
+        'YshfClaimCommissionRequest', 'YshfCatalogRequest', 'YshfShareRequest',
+        'YshfShopQueryReply', 'YshfSellReply', 'YshfGrantReply', 'YshfRecordReply',
+        'YshfCommissionReply', 'YshfExchangeReply', 'YshfShareReply',
+    ]) types[name] = root.lookupType(`gamepb.activitypb.${name}`);
     types.ActivityOperateReply = root.lookupType('gamepb.activitypb.ActivityOperateReply');
     types.GetWeatherStatusRequest = root.lookupType('gamepb.weatherpb.GetWeatherStatusRequest');
     types.GetWeatherStatusReply = root.lookupType('gamepb.weatherpb.GetWeatherStatusReply');

@@ -1140,6 +1140,39 @@ async function handleApiCall(msg: any): Promise<void> {
                 case 'getPetDiaryFriend':
                     result = await require('../services/activity-center').getPetDiaryFriend(args[0]);
                     break;
+                case 'getCurrentYishuHuanfuActivity':
+                    result = await require('../services/activity-center').getCurrentYishuHuanfuActivity();
+                    break;
+                case 'claimYishuHuanfuSeeds':
+                    result = await require('../services/activity-center').claimYishuHuanfuSeeds();
+                    break;
+                case 'sellYishuHuanfuSweetPotato':
+                    result = await require('../services/activity-center').sellYishuHuanfuSweetPotato(args[0], args[1]);
+                    break;
+                case 'refreshYishuHuanfuQuote':
+                    result = await require('../services/activity-center').refreshYishuHuanfuQuote();
+                    break;
+                case 'queryYishuHuanfuCatalog':
+                    result = await require('../services/activity-center').queryYishuHuanfuCatalog();
+                    break;
+                case 'queryYishuHuanfuRecords':
+                    result = await require('../services/activity-center').queryYishuHuanfuRecords();
+                    break;
+                case 'claimYishuHuanfuCommission':
+                    result = await require('../services/activity-center').claimYishuHuanfuCommission();
+                    break;
+                case 'queryYishuHuanfuShop':
+                    result = await require('../services/activity-center').queryYishuHuanfuShop(args[0]);
+                    break;
+                case 'scanYishuHuanfuFriendShops':
+                    result = await require('../services/activity-center').scanYishuHuanfuFriendShops(args[0]);
+                    break;
+                case 'exchangeYishuHuanfuGoods':
+                    result = await require('../services/activity-center').exchangeYishuHuanfuGoods(args[0], args[1]);
+                    break;
+                case 'shareYishuHuanfuShop':
+                    result = await require('../services/activity-center').shareYishuHuanfuShop();
+                    break;
                 case 'claimCharityRedFlowerSeeds':
                     result = await require('../services/activity-center').claimCharityRedFlowerSeeds();
                     break;

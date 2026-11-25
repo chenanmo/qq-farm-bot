@@ -6,6 +6,7 @@ import { qingMeiGameplay } from './qingmei'
 import { qixiGameplay } from './qixi'
 import { stellarGameplay } from './stellar'
 import { weatherGameplay } from './weather'
+import { yishuHuanfuGameplay } from './yishuhuanfu'
 
 const gameplayModules: Record<ActivityGameplayKey, ActivityGameplayModule> = {
   muge: { key: 'muge', defaultTab: 'muge', tabs: ['muge'] },
@@ -18,6 +19,7 @@ const gameplayModules: Record<ActivityGameplayKey, ActivityGameplayModule> = {
   qingmei: qingMeiGameplay,
   charity: charityGameplay,
   weather: weatherGameplay,
+  yishuhuanfu: yishuHuanfuGameplay,
 }
 
 function inferGameplayKey(activity: ActivityDirectoryItemDto): ActivityGameplayKey | null {
@@ -29,6 +31,8 @@ function inferGameplayKey(activity: ActivityDirectoryItemDto): ActivityGameplayK
     return 'pet'
   if (activity.detailTarget === 'weather')
     return 'weather'
+  if (activity.detailTarget === 'yishuhuanfu' || activity.activityIds.some(id => ['2026111707', '2026111708', '2026111709'].includes(id)))
+    return 'yishuhuanfu'
   if (activity.detailTarget === 'charity')
     return 'charity'
   if (activity.detailTarget === 'qixi')

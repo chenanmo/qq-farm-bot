@@ -7,10 +7,12 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { resolveActivityGameplay } from '@/components/activity/gameplays'
 import ShareRewardActivity from '@/components/activity/ShareRewardActivity.vue'
+import YishuHuanfuActivityPanel from '@/components/activity/YishuHuanfuActivityPanel.vue'
 import { useAccountStore } from '@/stores/account'
 import { useActivityCenterStore } from '@/stores/activity-center'
 import { useAppStore } from '@/stores/app'
 import { useFriendStore } from '@/stores/friend'
+import { useYishuHuanfuStore } from '@/stores/yishuhuanfu'
 import ActivityDirectoryPage from './activity-center/ActivityDirectoryPage.vue'
 import AutumnActivityPage from './activity-center/AutumnActivityPage.vue'
 import CharityActivityPage from './activity-center/CharityActivityPage.vue'
@@ -28,6 +30,7 @@ const notification = useNotification()
 const accountStore = useAccountStore()
 const activityStore = useActivityCenterStore()
 const friendStore = useFriendStore()
+const yishuHuanfuStore = useYishuHuanfuStore()
 const { currentAccountId } = storeToRefs(accountStore)
 const { season, shop, solarTerms, constellation, notice, actionError } = storeToRefs(activityStore)
 const selectedActivity = ref<ActivityGameplayKey | null>(null)
@@ -54,6 +57,10 @@ async function openActivity(activity: ActivityDirectoryItemDto) {
   selectedInstanceId.value = activity.instanceId || activity.activityIds.find(id => ['2026092501', '2026110104'].includes(id)) || ''
   if (['pet', 'wish', 'happy', 'milk', 'muge'].includes(gameplay.module.key))
     return
+  if (gameplay.module.key === 'yishuhuanfu') {
+    void yishuHuanfuStore.load(accountId(), true)
+    return
+  }
   const detailsLoaded = await activityStore.loadDetails(accountId(), gameplay.module.key)
   if (gameplay.module.key === 'qixi' && currentAccountId.value) {
     await friendStore.fetchFriends(String(currentAccountId.value))
@@ -126,6 +133,7 @@ onUnmounted(() => {
     @open="openActivity"
   />
   <MugePage v-else-if="selectedActivity === 'muge'" @back="goBack" />
+  <YishuHuanfuActivityPanel v-else-if="selectedActivity === 'yishuhuanfu'" @back="goBack" />
   <MilkTeaPage v-else-if="selectedActivity === 'milk'" @back="goBack" />
   <ShareRewardActivity v-else-if="selectedActivity === 'happy'" :activity-id="selectedInstanceId" @back="goBack" />
   <AutumnActivityPage

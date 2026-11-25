@@ -122,6 +122,47 @@ message WeatherResearchData {
     WeatherResearchTrack track = 1;
 }
 
+// 以薯换福主模块扩展。ActivityService.Operate 的命令号位于 cmd，
+// 各命令的参数与响应分别复用 190+cmd 的槽位。
+message YshfEmpty {}
+message YshfClaims { bool seed_claimed = 1; bool share_claimed = 2; }
+message YshfShareState { int64 bonus = 1; int64 field_2 = 2; int64 timestamp = 3; int64 field_4 = 4; }
+message YshfActionSlot { int64 field_1 = 1; int64 field_2 = 2; int64 field_3 = 3; }
+message YshfState {
+    YshfClaims claims = 1;
+    YshfShareState share = 2;
+    int64 luck_coin = 3;
+    YshfActionSlot actions = 4;
+    int64 base_price = 5;
+    int64 bonus_price = 6;
+    int64 capacity = 7;
+    int64 pending_commission = 11;
+    int64 commission_flag = 13;
+}
+message YshfCatalogGoods { int64 index = 1; int64 price = 2; int64 status = 3; int64 limit = 4; int64 field_5 = 5; int64 field_6 = 6; int64 field_7 = 7; }
+message YshfCatalog { repeated YshfCatalogGoods goods = 1; int64 field_2 = 2; }
+message YshfGrant { int64 item_id = 1; int64 count = 2; }
+message YshfGrantReply { YshfGrant grant = 1; }
+message YshfShopBrief { int64 gid = 1; string name = 2; string avatar = 3; int64 level = 4; }
+message YshfSelfShop { int64 gid = 1; string share_key = 2; string avatar = 3; int64 level = 4; bytes field_5 = 5; }
+message YshfShopQuote { int64 base_price = 1; int64 bonus_price = 2; int64 quota = 3; YshfShopBrief shop = 4; }
+message YshfShopQueryReply { YshfShopQuote quote = 1; bool can_sell = 2; }
+message YshfSellReply { int64 count = 1; int64 price = 2; int64 total = 3; int64 quota = 4; int64 balance = 5; }
+message YshfShareReply { YshfGrant grant = 1; int64 price = 2; int64 field_3 = 3; YshfSelfShop shop = 4; int64 field_5 = 5; int64 field_6 = 6; }
+message YshfClaimSeedRequest { int64 activity_id = 1; int64 cmd = 2; YshfEmpty params = 191; }
+message YshfShopQueryRequest { message Params { int64 shop_gid = 1; } int64 activity_id = 1; int64 cmd = 2; Params params = 192; }
+message YshfSellRequest { message Params { int64 shop_gid = 1; int64 count = 2; } int64 activity_id = 1; int64 cmd = 2; Params params = 193; }
+message YshfRecordRequest { int64 activity_id = 1; int64 cmd = 2; YshfEmpty params = 195; }
+message YshfPurchaseRecord { int64 timestamp = 1; int64 gid = 2; int64 count = 3; int64 total = 4; string name = 6; string avatar = 7; int64 level = 8; int64 commission = 9; }
+message YshfRecordReply { repeated YshfPurchaseRecord records = 1; }
+message YshfClaimCommissionRequest { int64 activity_id = 1; int64 cmd = 2; YshfEmpty params = 199; }
+message YshfCommissionReply { int64 amount = 1; int64 field_3 = 3; int64 balance = 4; }
+message YshfExchangeRequest { message Params { int64 index = 1; int64 count = 2; } int64 activity_id = 1; int64 cmd = 2; Params params = 196; }
+message YshfExchangeGrant { int64 item_id = 1; int64 count = 2; int64 field_3 = 3; int64 field_6 = 6; int64 field_7 = 7; }
+message YshfExchangeReply { int64 price = 1; YshfExchangeGrant grant = 2; int64 balance = 3; int64 field_4 = 4; int64 field_5 = 5; }
+message YshfCatalogRequest { int64 activity_id = 1; int64 cmd = 2; YshfEmpty params = 197; }
+message YshfShareRequest { int64 activity_id = 1; int64 cmd = 2; YshfEmpty params = 198; }
+
 message ActivityData {
     ActivityBodyMilkTea milk_tea = 121;
     ActivityBodyGrowthFund growth_fund = 122;
@@ -129,6 +170,7 @@ message ActivityData {
     ActivityBodyShareReward share_reward = 120;
     ActivityContent activity = 1;
     repeated ActivityData children = 2;
+    YshfState yishuhuanfu = 130;
     StarSandGoodsList catalog = 102;
     QingMeiDailySeedData qingmei_daily_seed = 103;
     QingMeiBrewData qingmei_brew = 108;
@@ -486,6 +528,14 @@ message ActivityOperateReply {
     repeated corepb.Item rewards = 104;
     QingMeiBrewStarted qingmei_brew_started = 113;
     QingMeiQuote qingmei_quote = 114;
+    YshfGrantReply yshf_claim_seed = 191;
+    YshfShopQueryReply yshf_shop = 192;
+    YshfSellReply yshf_sell = 193;
+    YshfRecordReply yshf_records = 195;
+    YshfExchangeReply yshf_exchange = 196;
+    YshfCatalog yshf_catalog = 197;
+    YshfShareReply yshf_share = 198;
+    YshfCommissionReply yshf_commission = 199;
     QingMeiSettlement qingmei_settlement = 115;
     QixiGiftResult qixi_gift_result = 125;
     QixiBridgeRewardResult qixi_bridge_result = 126;
