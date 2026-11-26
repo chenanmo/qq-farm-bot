@@ -176,6 +176,11 @@ async function checkFarm(): Promise<boolean> {
         return false;
     } finally {
         isCheckingFarm = false;
+        if (pacing.readyToPlant || !pacing.deferred) {
+            pacing.readyToPlant = false;
+            pacing.plantReadyAt = 0;
+            pacing.pendingLandIds = [];
+        }
         schedulePlantContinuation(generation, pacing);
         armFarmWake();
     }

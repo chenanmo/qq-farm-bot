@@ -2129,7 +2129,7 @@ onBeforeUnmount(() => {
                 />
                 <BaseInput
                   v-model.number="localStrategySettings.plantDelaySeconds"
-                  label="种植延迟 (秒)"
+                  label="空地等待后种植 (秒)"
                   type="number"
                   min="0"
                   max="60"
@@ -2142,6 +2142,9 @@ onBeforeUnmount(() => {
                   max="300"
                 />
               </div>
+              <p class="text-xs text-gray-500">
+                新空地出现后等待该时长再开始种植；等待期间发现新的空地会重新计时，计时结束后本轮连续种植。
+              </p>
             </div>
 
             <div class="flex justify-end gap-2 border-t pt-3 dark:border-gray-700">

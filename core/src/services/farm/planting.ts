@@ -45,23 +45,28 @@ interface PlantingLayout {
     landIds: number[];
 }
 
-/** 同一轮种植跨种子、背包和商店共用，避免切换种子跳过间隔。 */
+/** 同一轮种植共享空地等待状态；等待结束后连续种植，不在请求之间按此设置休眠。 */
 interface PlantingPacing {
     lastPlantAt: number | null;
     delaySeconds?: number;
+    plantReadyAt?: number;
+    pendingLandIds?: number[];
+    readyToPlant?: boolean;
     defer?: boolean;
     deferred?: boolean;
     shopSeed?: { seedId: number; strategy: string; remaining: number };
 }
 
 function getRemainingPlantDelayMs(pacing: PlantingPacing): number {
+    if (pacing.readyToPlant) return 0;
+    if (Number(pacing.plantReadyAt) > 0) return Math.max(0, pacing.plantReadyAt! - Date.now());
     if (pacing.lastPlantAt === null) return 0;
     return Math.max(0, Math.max(50, (pacing.delaySeconds ?? getPlantDelaySeconds()) * 1000)
         - (performance.now() - pacing.lastPlantAt));
 }
 
 function isSlicedPlanting(pacing: PlantingPacing): boolean {
-    return !!pacing.defer && (pacing.delaySeconds ?? getPlantDelaySeconds()) > 0;
+    return !!pacing.defer && !pacing.readyToPlant && (pacing.delaySeconds ?? getPlantDelaySeconds()) > 0;
 }
 
 interface PlantSeedsResult {
@@ -95,7 +100,7 @@ function getPlantSizeBySeedId(seedId: number | string): number {
 }
 
 /**
- * 相邻种植请求按账号设置间隔；0 秒保留原有 50ms 最小请求间隔。
+ * 空地达到稳定等待时间后连续执行种植请求；0 秒保留原有 50ms 最小请求间隔。
  * 多格作物必须传入预先选好的布局；回复占地不完整时会补拉全量土地确认。
  */
 async function plantSeeds(seedId: number | string, landIds: number[], options: {
@@ -736,6 +741,25 @@ async function autoPlantEmptyLands(deadLandIds: number[], emptyLandIds: number[]
 } = {}): Promise<any> {
     const pacing: PlantingPacing = options.pacing || { lastPlantAt: null };
     pacing.deferred = false;
+    const delaySeconds = Math.max(0, pacing.delaySeconds ?? getPlantDelaySeconds());
+    const observedLandIds = [...new Set<number>([...(deadLandIds || []), ...(emptyLandIds || [])]
+        .map((id: any) => toNum(id)).filter((id: number) => id > 0))];
+    if (pacing.defer && delaySeconds > 0 && observedLandIds.length > 0 && !pacing.readyToPlant) {
+        const pending = new Set<number>((pacing.pendingLandIds || []).map(toNum).filter((id: number) => id > 0));
+        const newlyObserved = observedLandIds.filter(id => !pending.has(id));
+        for (const id of observedLandIds) pending.add(id);
+        pacing.pendingLandIds = [...pending];
+        if (newlyObserved.length > 0 || !Number(pacing.plantReadyAt)) {
+            pacing.plantReadyAt = Date.now() + delaySeconds * 1000;
+        }
+        const remainingMs = getRemainingPlantDelayMs(pacing);
+        if (remainingMs > 0) {
+            pacing.deferred = true;
+            return { plantedLands: [], deferredLandIds: [], remainingLandIds: observedLandIds, uncertain: false };
+        }
+        pacing.readyToPlant = true;
+        pacing.plantReadyAt = 0;
+    }
     if ((deadLandIds.length > 0 || emptyLandIds.length > 0) && isSlicedPlanting(pacing) && getRemainingPlantDelayMs(pacing) > 0) {
         pacing.deferred = true;
         return { plantedLands: [] };
