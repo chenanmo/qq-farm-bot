@@ -32,6 +32,28 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
         }
     });
 
+    app.get('/api/friends/pet-cache', async (req: Request, res: Response) => {
+        const id = getAccId(ctx, req);
+        if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
+        try {
+            const data = await ctx.provider.getFriendPetCache(id);
+            res.json({ ok: true, data });
+        } catch (e: any) {
+            handleApiError(res, e);
+        }
+    });
+
+    app.post('/api/friends/pet-cache/clear', async (req: Request, res: Response) => {
+        const id = getAccId(ctx, req);
+        if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
+        try {
+            const data = await ctx.provider.clearFriendPetCache(id);
+            res.json({ ok: true, data });
+        } catch (e: any) {
+            handleApiError(res, e);
+        }
+    });
+
     // API: 好友列表
     app.get('/api/friends', async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);

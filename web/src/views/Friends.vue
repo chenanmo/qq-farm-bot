@@ -151,6 +151,44 @@ const friendsLoadedAccount = ref('')
 const blacklistLoadedAccount = ref('')
 const interactRecordsLoadedAccount = ref('')
 const petSyncRunning = ref(false)
+const showPetCacheModal = ref(false)
+const petCacheLoading = ref(false)
+const petCacheEntries = ref<any[]>([])
+const petCacheClearing = ref(false)
+const petCacheFriendsByGid = computed(() => new Map(friends.value.map(friend => [Number(friend.gid), friend])))
+
+async function openPetCacheModal() {
+  const accountId = currentAccountId.value
+  if (!accountId || petCacheLoading.value) return
+  showPetCacheModal.value = true
+  petCacheLoading.value = true
+  try {
+    petCacheEntries.value = await friendStore.getFriendPetCache(accountId)
+  }
+  catch (e: any) {
+    toast.error(getApiErrorMessage(e, '读取好友宠物缓存失败'))
+  }
+  finally {
+    petCacheLoading.value = false
+  }
+}
+
+function clearPetCache() {
+  const accountId = currentAccountId.value
+  if (!accountId || petCacheClearing.value) return
+  confirmAction(`确定清空这 ${petCacheEntries.value.length} 位好友的宠物缓存吗？清空后会重新等待同步确认。`, async () => {
+    if (accountId !== currentAccountId.value) return
+    petCacheClearing.value = true
+    try {
+      const count = await friendStore.clearFriendPetCache(accountId)
+      petCacheEntries.value = []
+      toast.success(`已清空 ${count} 位好友的宠物缓存`)
+    }
+    finally {
+      petCacheClearing.value = false
+    }
+  })
+}
 
 function setActiveTab(value: string) {
   if (TABS.some(tab => tab.key === value)) {
@@ -975,6 +1013,10 @@ async function handleBatchAddKnownFriendGids() {
           <template #icon><span class="i-carbon-pet-image" /></template>
           同步宠物
         </NButton>
+        <NButton secondary :disabled="!currentAccountId || !currentAccountRunning" @click="openPetCacheModal">
+          <template #icon><span class="i-carbon-catalog" /></template>
+          宠物缓存
+        </NButton>
       </div>
     </div>
 
@@ -1515,6 +1557,35 @@ async function handleBatchAddKnownFriendGids() {
               >
                 <span class="i-carbon-trash-can" />
               </NButton>
+            </div>
+          </div>
+        </div>
+      </NCard>
+    </NModal>
+
+    <NModal :show="showPetCacheModal" @update:show="showPetCacheModal = $event">
+      <NCard class="gid-list-card" title="好友宠物缓存" :bordered="false" closable @close="showPetCacheModal = false">
+        <p class="mt-0 text-sm text-gray-500 dark:text-gray-400">
+          已缓存 {{ petCacheEntries.length }} 位好友。清空后，后续巡查或宠物同步会重新确认。
+        </p>
+        <div class="mb-4 flex justify-end">
+          <NButton type="error" secondary :loading="petCacheClearing" :disabled="petCacheEntries.length === 0" @click="clearPetCache">
+            <template #icon><span class="i-carbon-trash-can" /></template>
+            清空缓存
+          </NButton>
+        </div>
+        <div class="gid-list-scroll dialog-scroll">
+          <div v-if="petCacheLoading" class="flex justify-center py-8"><NSpin /></div>
+          <div v-else-if="petCacheEntries.length === 0" class="py-8 text-center text-gray-500 dark:text-gray-400">
+            暂无宠物缓存
+          </div>
+          <div v-else class="grid gap-2 lg:grid-cols-2">
+            <div v-for="entry in petCacheEntries" :key="entry.gid" class="flex items-center justify-between border rounded-lg p-3">
+              <div class="min-w-0">
+                <div class="truncate text-sm font-medium">{{ petCacheFriendsByGid.get(Number(entry.gid))?.name || `GID:${entry.gid}` }}</div>
+                <div class="text-xs text-gray-500">GID {{ entry.gid }} · {{ entry.state === 'protect' ? '护主犬' : entry.state === 'none' ? '无宠物' : `宠物 #${entry.dogId}` }}</div>
+              </div>
+              <div class="ml-3 shrink-0 text-right text-xs text-gray-500">{{ entry.date }}{{ entry.checkedAt ? ` · ${new Date(entry.checkedAt).toLocaleString()}` : '' }}</div>
             </div>
           </div>
         </div>

@@ -171,6 +171,13 @@ export function planNextSyncPacing(result: FriendPetSyncResult | null | undefine
             rampLocked: current.rampLocked,
         };
     }
+    if (result && result.outcome === 'deferred' && reason === 'probe_failed') {
+        return {
+            delayMs: SYNC_CHECK_INTERVAL_MS,
+            quota: SYNC_MAX_PER_ROUND_BASE,
+            rampLocked: true,
+        };
+    }
     return { delayMs: SYNC_CHECK_INTERVAL_MS, quota: current.quota, rampLocked: current.rampLocked };
 }
 
@@ -356,6 +363,20 @@ async function runFriendPetSyncRound(manual: boolean): Promise<FriendPetSyncResu
 
             if (yielded) break;
             if (index + SYNC_BATCH_SIZE < targets.length) await sleep(SYNC_BATCH_GAP_MS);
+        }
+
+        // 重算仍待确认的好友：临时失败要留给后续轮次重试，已被黑名单/失效逻辑处理的好友则自然排除。
+        if (!deferReason) {
+            const remaining = collectPendingFriends(
+                roster.friends,
+                myGid,
+                new Set(getFriendBlacklist(accountId)),
+                getInvalidKnownFriendGidSet(),
+            );
+            if (remaining.length > 0) {
+                deferred = remaining.length;
+                deferReason = pending.length > targets.length ? 'round_quota' : 'probe_failed';
+            }
         }
 
         // 只有真正跑完才标记当日完成，否则下一次定时检查继续补剩下的

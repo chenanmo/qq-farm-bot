@@ -126,6 +126,8 @@ function createDataProvider(options: DataProviderOptions) {
         operateSolarCalendar: (accountRef: string, action: string, input: any) => callWorkerApi(resolveAccountRefId(accountRef), 'operateSolarCalendar', action, input),
         getFriends: (accountRef: string, forceSync = false, withStatus = false) => callWorkerApi(resolveAccountRefId(accountRef), 'getFriends', forceSync, true, withStatus),
         syncFriendPets: (accountRef: string) => callWorkerApi(resolveAccountRefId(accountRef), 'syncFriendPets'),
+        getFriendPetCache: (accountRef: string) => callWorkerApi(resolveAccountRefId(accountRef), 'getFriendPetCache'),
+        clearFriendPetCache: (accountRef: string) => callWorkerApi(resolveAccountRefId(accountRef), 'clearFriendPetCache'),
         getFriendsCache: (accountRef: string, withStatus = false) => callWorkerApi(resolveAccountRefId(accountRef), 'getFriendsCache', withStatus),
         clearFriendsCache: (accountRef: string) => callWorkerApi(resolveAccountRefId(accountRef), 'clearFriendsCache'),
         getInteractRecords: (accountRef: string) => callWorkerApi(resolveAccountRefId(accountRef), 'getInteractRecords'),

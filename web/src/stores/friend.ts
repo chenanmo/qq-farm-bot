@@ -365,6 +365,21 @@ export const useFriendStore = defineStore('friend', () => {
     return res.data.data
   }
 
+  async function getFriendPetCache(accountId: string) {
+    if (!accountId || accountId !== accountStore.currentAccountId) return []
+    const res = await api.get('/api/friends/pet-cache', { headers: { 'x-account-id': accountId } })
+    if (!res.data?.ok) throw new Error(getApiErrorMessage(res.data, '读取好友宠物缓存失败'))
+    return Array.isArray(res.data.data) ? res.data.data : []
+  }
+
+  async function clearFriendPetCache(accountId: string) {
+    if (!accountId || accountId !== accountStore.currentAccountId) return 0
+    const res = await api.post('/api/friends/pet-cache/clear', {}, { headers: { 'x-account-id': accountId } })
+    if (!res.data?.ok) throw new Error(getApiErrorMessage(res.data, '清空好友宠物缓存失败'))
+    friends.value = friends.value.map(friend => ({ ...friend, petState: 'unknown', pet: null }))
+    return Number(res.data.data?.cleared) || 0
+  }
+
   async function fetchFriendsCache(accountId: string) {
     if (!accountId || accountId !== accountStore.currentAccountId || loading.value)
       return
@@ -796,6 +811,8 @@ export const useFriendStore = defineStore('friend', () => {
     knownFriendSettingsSaving,
     fetchFriends,
     syncFriendPets,
+    getFriendPetCache,
+    clearFriendPetCache,
     fetchFriendsCache,
     fetchBlacklist,
     toggleBlacklist,

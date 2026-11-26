@@ -546,6 +546,7 @@ module.exports = {
     getFriendsListCacheTtlSec,
     setFriendsListCacheTtlSec,
     getFriendBlacklist,
+    getFriendBadTargets,
     setFriendBlacklist,
     addFriendToBlacklist,
     getRanchFriendBlacklist,

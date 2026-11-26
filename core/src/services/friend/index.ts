@@ -11,6 +11,8 @@ export {
 export {
     getFriendDogState,
     getFriendPetCacheStats,
+    getFriendPetCacheEntries,
+    clearFriendPetCache,
 } from './pet-cache';
 
 export {

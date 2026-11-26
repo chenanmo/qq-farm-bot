@@ -742,28 +742,6 @@ async function autoPlantEmptyLands(deadLandIds: number[], emptyLandIds: number[]
     const pacing: PlantingPacing = options.pacing || { lastPlantAt: null };
     pacing.deferred = false;
     const delaySeconds = Math.max(0, pacing.delaySeconds ?? getPlantDelaySeconds());
-    const observedLandIds = [...new Set<number>([...(deadLandIds || []), ...(emptyLandIds || [])]
-        .map((id: any) => toNum(id)).filter((id: number) => id > 0))];
-    if (pacing.defer && delaySeconds > 0 && observedLandIds.length > 0 && !pacing.readyToPlant) {
-        const pending = new Set<number>((pacing.pendingLandIds || []).map(toNum).filter((id: number) => id > 0));
-        const newlyObserved = observedLandIds.filter(id => !pending.has(id));
-        for (const id of observedLandIds) pending.add(id);
-        pacing.pendingLandIds = [...pending];
-        if (newlyObserved.length > 0 || !Number(pacing.plantReadyAt)) {
-            pacing.plantReadyAt = Date.now() + delaySeconds * 1000;
-        }
-        const remainingMs = getRemainingPlantDelayMs(pacing);
-        if (remainingMs > 0) {
-            pacing.deferred = true;
-            return { plantedLands: [], deferredLandIds: [], remainingLandIds: observedLandIds, uncertain: false };
-        }
-        pacing.readyToPlant = true;
-        pacing.plantReadyAt = 0;
-    }
-    if ((deadLandIds.length > 0 || emptyLandIds.length > 0) && isSlicedPlanting(pacing) && getRemainingPlantDelayMs(pacing) > 0) {
-        pacing.deferred = true;
-        return { plantedLands: [] };
-    }
     let landsToPlant: number[] = [...new Set<number>((Array.isArray(emptyLandIds) ? emptyLandIds : [])
         .map((id: any) => toNum(id)).filter((id: number) => id > 0))];
     let latestLands: any[] = Array.isArray(options.knownLands) ? options.knownLands : [];
@@ -795,6 +773,26 @@ async function autoPlantEmptyLands(deadLandIds: number[], emptyLandIds: number[]
     }
 
     if (landsToPlant.length === 0) return { plantedLands: [] };
+
+    // Start the settling timer only after harvest residue is cleared and the server confirms
+    // which lands are actually empty. New empty lands during the wait restart the timer.
+    if (pacing.defer && delaySeconds > 0 && !pacing.readyToPlant) {
+        const observedLandIds = [...new Set<number>(landsToPlant.map(toNum).filter((id: number) => id > 0))];
+        const pending = new Set<number>((pacing.pendingLandIds || []).map((id: any) => toNum(id)).filter((id: number) => id > 0));
+        const newlyObserved = observedLandIds.filter(id => !pending.has(id));
+        for (const id of observedLandIds) pending.add(id);
+        pacing.pendingLandIds = [...pending];
+        if (newlyObserved.length > 0 || !Number(pacing.plantReadyAt)) {
+            pacing.plantReadyAt = Date.now() + (delaySeconds + 1.5) * 1000;
+        }
+        const remainingMs = getRemainingPlantDelayMs(pacing);
+        if (remainingMs > 0) {
+            pacing.deferred = true;
+            return { plantedLands: [], deferredLandIds: [], remainingLandIds: observedLandIds, uncertain: false };
+        }
+        pacing.readyToPlant = true;
+        pacing.plantReadyAt = 0;
+    }
 
     const accountStrategy = String(getPlantingStrategy() || '').trim();
 

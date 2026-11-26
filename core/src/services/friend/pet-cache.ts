@@ -210,6 +210,29 @@ export function getFriendPetCacheStats(): { date: string; known: number; protect
     };
 }
 
+export function getFriendPetCacheEntries(): Array<{ gid: number; dogId: number; state: 'protect' | 'other' | 'none'; date: string; checkedAt: number }> {
+    dropStaleEntries();
+    return [...loadCache().entries()]
+        .map(([gid, entry]) => ({
+            gid,
+            dogId: entry.dogId,
+            state: (entry.dogId <= 0 ? 'none' : entry.dogId === PROTECT_DOG_ID ? 'protect' : 'other') as 'protect' | 'other' | 'none',
+            date: entry.date,
+            checkedAt: entry.checkedAt,
+        }))
+        .sort((a, b) => a.gid - b.gid);
+}
+
+export function clearFriendPetCache(): number {
+    const store: Map<number, FriendDogEntry> = loadCache();
+    const count: number = store.size;
+    store.clear();
+    lastFullSyncDate = '';
+    petScheduler.clear('friend_pet_cache_flush');
+    flushCache();
+    return count;
+}
+
 /**
  * 仅供停机与测试使用：丢掉内存态，下次访问重新从文件加载。
  */

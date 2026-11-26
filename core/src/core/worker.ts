@@ -1009,6 +1009,12 @@ async function handleApiCall(msg: any): Promise<void> {
                 case 'syncFriendPets':
                     result = await require('../services/friend').runManualFriendPetSync();
                     break;
+                case 'getFriendPetCache':
+                    result = require('../services/friend').getFriendPetCacheEntries();
+                    break;
+                case 'clearFriendPetCache':
+                    result = { cleared: require('../services/friend').clearFriendPetCache() };
+                    break;
                 case 'getFriendsCache':
                     result = getFriendsListCacheOnly();
                     if (args[0]) result = { data: result, partial: isFriendsListPartial() };
