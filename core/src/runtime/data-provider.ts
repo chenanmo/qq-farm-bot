@@ -327,6 +327,7 @@ function createDataProvider(options: DataProviderOptions) {
                 'stealDelaySeconds',
                 'plantOrderRandom',
                 'plantDelaySeconds',
+                'plantIntervalSeconds',
                 'fertilizerBuyOrganicCount',
                 'fertilizerBuyOrganicThresholdHours',
                 'fertilizerBuyNormalCount',

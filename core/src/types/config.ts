@@ -84,6 +84,7 @@ export interface AccountConfig {
   stealDelaySeconds: number;
   plantOrderRandom: boolean;
   plantDelaySeconds: number;
+  plantIntervalSeconds: number;
   fertilizerBuyOrganicCount: number;
   fertilizerBuyOrganicThresholdHours: number;
   fertilizerBuyNormalCount: number;

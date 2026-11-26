@@ -300,6 +300,7 @@ export interface SettingsState {
   stealDelaySeconds: number
   plantOrderRandom: boolean
   plantDelaySeconds: number
+  plantIntervalSeconds: number
   fertilizerBuyOrganicCount: number
   fertilizerBuyOrganicThresholdHours: number
   fertilizerBuyNormalCount: number
@@ -327,6 +328,7 @@ type SaveableSettingsKey
     | 'stealDelaySeconds'
     | 'plantOrderRandom'
     | 'plantDelaySeconds'
+    | 'plantIntervalSeconds'
     | 'fertilizerBuyOrganicCount'
     | 'fertilizerBuyOrganicThresholdHours'
     | 'fertilizerBuyNormalCount'
@@ -355,6 +357,7 @@ const SAVEABLE_SETTINGS_KEYS: SaveableSettingsKey[] = [
   'stealDelaySeconds',
   'plantOrderRandom',
   'plantDelaySeconds',
+  'plantIntervalSeconds',
   'fertilizerBuyOrganicCount',
   'fertilizerBuyOrganicThresholdHours',
   'fertilizerBuyNormalCount',
@@ -385,6 +388,7 @@ function createDefaultSettings(): SettingsState {
     stealDelaySeconds: 0,
     plantOrderRandom: false,
     plantDelaySeconds: 0,
+    plantIntervalSeconds: 1.5,
     fertilizerBuyOrganicCount: 10,
     fertilizerBuyOrganicThresholdHours: 10,
     fertilizerBuyNormalCount: 10,
@@ -446,6 +450,7 @@ export const useSettingStore = defineStore('setting', () => {
       stealDelaySeconds: data.stealDelaySeconds ?? defaults.stealDelaySeconds,
       plantOrderRandom: data.plantOrderRandom ?? defaults.plantOrderRandom,
       plantDelaySeconds: data.plantDelaySeconds ?? defaults.plantDelaySeconds,
+      plantIntervalSeconds: data.plantIntervalSeconds ?? defaults.plantIntervalSeconds,
       fertilizerBuyOrganicCount: data.fertilizerBuyOrganicCount ?? defaults.fertilizerBuyOrganicCount,
       fertilizerBuyOrganicThresholdHours: data.fertilizerBuyOrganicThresholdHours ?? defaults.fertilizerBuyOrganicThresholdHours,
       fertilizerBuyNormalCount: data.fertilizerBuyNormalCount ?? defaults.fertilizerBuyNormalCount,

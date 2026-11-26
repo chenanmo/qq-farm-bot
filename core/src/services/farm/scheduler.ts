@@ -176,10 +176,13 @@ async function checkFarm(): Promise<boolean> {
         return false;
     } finally {
         isCheckingFarm = false;
-        if (pacing.readyToPlant || !pacing.deferred) {
+        if (!pacing.deferred) {
             pacing.readyToPlant = false;
             pacing.plantReadyAt = 0;
             pacing.pendingLandIds = [];
+            pacing.lastSeedId = undefined;
+            pacing.switchingSeedId = undefined;
+            pacing.seedSwitchReadyAt = 0;
         }
         schedulePlantContinuation(generation, pacing);
         armFarmWake();
@@ -438,7 +441,7 @@ async function runFarmOperation(
                 fertilizerSnapshot = undefined;
                 const plantResult = await autoPlantEmptyLands(allDeadLands, allEmptyLands, {
                     propagateErrors, knownLands: lands,
-                    pacing: automatic ? automatic.pacing : { lastPlantAt: null, delaySeconds: 0 },
+                    pacing: automatic ? automatic.pacing : { lastPlantAt: null, plantDelaySeconds: 0, plantIntervalSeconds: 0 },
                 });
                 const plantedCount = Array.isArray(plantResult?.plantedLands) ? plantResult.plantedLands.length : 0;
                 const deferredCount = Array.isArray(plantResult?.deferredLandIds) ? plantResult.deferredLandIds.length : 0;

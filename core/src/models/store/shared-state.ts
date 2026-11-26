@@ -116,6 +116,7 @@ const DEFAULT_ACCOUNT_CONFIG: AccountConfig = {
     stealDelaySeconds: 1,
     plantOrderRandom: true,
     plantDelaySeconds: 2,
+    plantIntervalSeconds: 1.5,
     fertilizerBuyOrganicCount: 1,
     fertilizerBuyOrganicThresholdHours: 10,
     fertilizerBuyNormalCount: 1,
@@ -327,6 +328,7 @@ function cloneAccountConfig(base: Partial<AccountConfig> = DEFAULT_ACCOUNT_CONFI
         stealDelaySeconds: Math.max(0, Math.min(300, Number(base.stealDelaySeconds) || 0)),
         plantOrderRandom: !!(base.plantOrderRandom),
         plantDelaySeconds: Math.max(0, Math.min(60, Number(base.plantDelaySeconds) || 0)),
+        plantIntervalSeconds: Math.max(0, Math.min(60, Number(base.plantIntervalSeconds ?? DEFAULT_ACCOUNT_CONFIG.plantIntervalSeconds) || 0)),
         fertilizerBuyOrganicCount: Math.max(0, Math.min(10000, Number(base.fertilizerBuyOrganicCount) || 0)),
         fertilizerBuyOrganicThresholdHours: Math.max(0, Math.min(990, Number(base.fertilizerBuyOrganicThresholdHours) || 0)),
         fertilizerBuyNormalCount: Math.max(0, Math.min(10000, Number(base.fertilizerBuyNormalCount) || 0)),
@@ -448,6 +450,10 @@ function normalizeAccountConfig(input: unknown, fallback: AccountConfig = accoun
 
     if (src.plantDelaySeconds !== undefined && src.plantDelaySeconds !== null) {
         cfg.plantDelaySeconds = Math.max(0, Math.min(60, Number(src.plantDelaySeconds) || 0));
+    }
+
+    if (src.plantIntervalSeconds !== undefined && src.plantIntervalSeconds !== null) {
+        cfg.plantIntervalSeconds = Math.max(0, Math.min(60, Number(src.plantIntervalSeconds) || 0));
     }
 
     if (src.fertilizerBuyOrganicCount !== undefined && src.fertilizerBuyOrganicCount !== null) {

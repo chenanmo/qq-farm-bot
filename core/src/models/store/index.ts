@@ -35,6 +35,7 @@ module.exports = {
     getStealDelaySeconds: accountConfig.getStealDelaySeconds,
     getPlantOrderRandom: accountConfig.getPlantOrderRandom,
     getPlantDelaySeconds: accountConfig.getPlantDelaySeconds,
+    getPlantIntervalSeconds: accountConfig.getPlantIntervalSeconds,
     getFertilizerBuyOrganicCount: accountConfig.getFertilizerBuyOrganicCount,
     getFertilizerBuyOrganicThresholdHours: accountConfig.getFertilizerBuyOrganicThresholdHours,
     getFertilizerBuyNormalCount: accountConfig.getFertilizerBuyNormalCount,

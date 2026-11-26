@@ -308,6 +308,7 @@ const localStrategySettings = ref({
   stealDelaySeconds: 0,
   plantOrderRandom: false,
   plantDelaySeconds: 0,
+  plantIntervalSeconds: 1.5,
   friendBadTargetsText: '',
   intervals: { farmMin: 2, farmMax: 5, friendMin: 10, friendMax: 15, helpMin: 10, helpMax: 15, stealMin: 10, stealMax: 15 },
   friendQuietHours: { enabled: false, start: '23:00', end: '07:00', continueFarm: true },
@@ -781,6 +782,7 @@ function syncLocalStrategySettings() {
       stealDelaySeconds: settings.value.stealDelaySeconds ?? 0,
       plantOrderRandom: !!settings.value.plantOrderRandom,
       plantDelaySeconds: settings.value.plantDelaySeconds ?? 0,
+      plantIntervalSeconds: settings.value.plantIntervalSeconds ?? 1.5,
       intervals: settings.value.intervals,
       friendBadTargetsText: (settings.value.friendBadTargets || []).join(', '),
       friendQuietHours: {
@@ -2122,7 +2124,7 @@ onBeforeUnmount(() => {
               <h4 class="text-sm text-gray-700 font-medium dark:text-gray-300">
                 种植与偷菜延迟设置
               </h4>
-              <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
+              <div class="grid grid-cols-1 gap-3 md:grid-cols-4">
                 <BaseSwitch
                   v-model="localStrategySettings.plantOrderRandom"
                   label="种植顺序随机"
@@ -2135,6 +2137,14 @@ onBeforeUnmount(() => {
                   max="60"
                 />
                 <BaseInput
+                  v-model.number="localStrategySettings.plantIntervalSeconds"
+                  label="种植间隔 (秒)"
+                  type="number"
+                  min="0"
+                  max="60"
+                  step="0.1"
+                />
+                <BaseInput
                   v-model.number="localStrategySettings.stealDelaySeconds"
                   label="偷菜延迟 (秒)"
                   type="number"
@@ -2143,7 +2153,7 @@ onBeforeUnmount(() => {
                 />
               </div>
               <p class="text-xs text-gray-500">
-                新空地经铲除并确认后开始等待该时长，并固定额外等待 1.5 秒；等待期间发现新的空地会重新计时，计时结束后本轮连续种植。
+                空地确认后先等待左侧时长再开始；每种一次后等待种植间隔。换种子后先等待左侧时长，再继续种植。
               </p>
             </div>
 

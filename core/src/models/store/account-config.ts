@@ -108,6 +108,7 @@ function getConfigSnapshot(accountId?: unknown): AccountConfig & { ui: typeof gl
         stealDelaySeconds: Math.max(0, Math.min(300, Number(cfg.stealDelaySeconds) || 0)),
         plantOrderRandom: !!cfg.plantOrderRandom,
         plantDelaySeconds: Math.max(0, Math.min(60, Number(cfg.plantDelaySeconds) || 0)),
+        plantIntervalSeconds: Math.max(0, Math.min(60, Number(cfg.plantIntervalSeconds) || 0)),
         fertilizerBuyOrganicCount: Math.max(0, Math.min(10000, Number(cfg.fertilizerBuyOrganicCount) || 0)),
         fertilizerBuyOrganicThresholdHours: Math.max(0, Math.min(990, Number(cfg.fertilizerBuyOrganicThresholdHours) || 0)),
         fertilizerBuyNormalCount: Math.max(0, Math.min(10000, Number(cfg.fertilizerBuyNormalCount) || 0)),
@@ -230,6 +231,10 @@ function applyConfigSnapshot(snapshot: Record<string, any> | undefined, options:
 
     if (cfg.plantDelaySeconds !== undefined && cfg.plantDelaySeconds !== null) {
         next.plantDelaySeconds = Math.max(0, Math.min(60, Number(cfg.plantDelaySeconds) || 0));
+    }
+
+    if (cfg.plantIntervalSeconds !== undefined && cfg.plantIntervalSeconds !== null) {
+        next.plantIntervalSeconds = Math.max(0, Math.min(60, Number(cfg.plantIntervalSeconds) || 0));
     }
 
     if (cfg.fertilizerBuyOrganicCount !== undefined && cfg.fertilizerBuyOrganicCount !== null) {
@@ -465,6 +470,10 @@ function getPlantDelaySeconds(accountId?: unknown): number {
     return Math.max(0, Math.min(60, Number(getAccountConfigSnapshot(accountId).plantDelaySeconds) || 0));
 }
 
+function getPlantIntervalSeconds(accountId?: unknown): number {
+    return Math.max(0, Math.min(60, Number(getAccountConfigSnapshot(accountId).plantIntervalSeconds) || 0));
+}
+
 function getFertilizerBuyOrganicCount(accountId?: unknown): number {
     return Math.max(0, Math.min(10000, Number(getAccountConfigSnapshot(accountId).fertilizerBuyOrganicCount) || 0));
 }
@@ -555,6 +564,7 @@ module.exports = {
     getStealDelaySeconds,
     getPlantOrderRandom,
     getPlantDelaySeconds,
+    getPlantIntervalSeconds,
     getFertilizerBuyOrganicCount,
     getFertilizerBuyOrganicThresholdHours,
     getFertilizerBuyNormalCount,

@@ -1472,19 +1472,23 @@ function syncStatus(force: boolean = false): void {
     const fullStats = require('../services/stats').getStats(statusData, userState, connected, limits);
     const nowMs = Date.now();
     const farmRemainSec = Math.max(0, Math.ceil((Number(nextFarmRunAt || 0) - nowMs) / 1000));
-    const friendRemainSec = Math.max(0, Math.ceil((Number(nextFriendRunAt || 0) - nowMs) / 1000));
+    const helpRemainSec = Math.max(0, Math.ceil((Number(nextHelpRunAt || 0) - nowMs) / 1000));
+    const stealRemainSec = Math.max(0, Math.ceil((Number(nextStealRunAt || 0) - nowMs) / 1000));
+    const badRemainSec = Math.max(0, Math.ceil((Number(nextBadRunAt || 0) - nowMs) / 1000));
     const visitStrategy = require('../services/friend/visit-strategy');
     const friendQuiet = !!visitStrategy.inFriendQuietHours();
     const farmQuiet = !!visitStrategy.inFarmQuietHours();
     fullStats.nextChecks = {
         farmRemainSec,
-        helpRemainSec: friendRemainSec,
-        stealRemainSec: friendRemainSec,
-        friendRemainSec,
+        helpRemainSec,
+        stealRemainSec,
+        badRemainSec,
+        friendRemainSec: Math.min(helpRemainSec, stealRemainSec, badRemainSec),
         farmQuiet,
         friendQuiet,
         helpQuiet: friendQuiet,
         stealQuiet: friendQuiet,
+        badQuiet: friendQuiet,
     };
 
     fullStats.automation = getAutomation();
