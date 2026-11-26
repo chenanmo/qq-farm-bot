@@ -830,7 +830,14 @@ async function saveStrategySettings() {
   strategySaving.value = true
   try {
     const payload = JSON.parse(JSON.stringify(localStrategySettings.value))
-    payload.friendBadTargets = String(payload.friendBadTargetsText || '').split(/[\s,，;；]+/).map(Number).filter((gid: number) => Number.isSafeInteger(gid) && gid > 0)
+    const rawFriendBadTargets = String(payload.friendBadTargetsText || '').split(/[\s,，;；]+/).filter(Boolean)
+    const parsedFriendBadTargets = rawFriendBadTargets.map((value: string) => Number(value))
+    if (parsedFriendBadTargets.some((gid: number) => !Number.isSafeInteger(gid) || gid <= 0)) {
+      showAlert('好友 GID 必须是安全范围内的正整数，请检查后再保存', 'danger')
+      return
+    }
+    payload.friendBadTargets = [...new Set(parsedFriendBadTargets)]
+    const expectedTargets = [...payload.friendBadTargets].sort((a: number, b: number) => a - b)
     delete payload.friendBadTargetsText
     if (payload.plantingStrategy === 'bag_priority') {
       bagSortRequestRevision++
@@ -840,6 +847,17 @@ async function saveStrategySettings() {
     if (accountId !== currentAccountId.value)
       return
     if (res.ok) {
+      const reloaded = await settingStore.fetchSettings(accountId)
+      if (accountId !== currentAccountId.value)
+        return
+      const persistedTargets = reloaded ? settingStore.settings.friendBadTargets : null
+      const persistedMatch = Array.isArray(persistedTargets)
+        && persistedTargets.length === payload.friendBadTargets.length
+        && [...persistedTargets].sort((a: number, b: number) => a - b).every((gid: number, index: number) => gid === expectedTargets[index])
+      if (!persistedMatch) {
+        showAlert('好友 GID 未能从服务器核实保存，请确认后端已更新；当前输入已保留', 'danger')
+        return
+      }
       syncLocalStrategySettings()
       showAlert('策略设置已保存', 'primary')
     }
