@@ -27,6 +27,7 @@ const { getAllFriends, enterFriendFarm, leaveFriendFarm } = require('./api');
 const { canScanFriend, extractReplyFriends, getInvalidKnownFriendGidSet } = require('./gid-manager');
 const {
     isFriendDogKnownToday,
+    hasCachedDog,
     isFullSyncDoneToday,
     markFullSyncDone,
     getFriendPetCacheStats,
@@ -210,7 +211,7 @@ export function collectPendingFriends(friends: any[], myGid: number, blacklist: 
         seen.add(gid);
         if (blacklist.has(gid) || invalid.has(gid) || !canScanFriend(gid)) continue;
         // 当天已经有结论的不重复同步（包括帮忙/偷菜/天气扫描顺手写入的）
-        if (isFriendDogKnownToday(gid)) continue;
+        if (isFriendDogKnownToday(gid) || hasCachedDog(gid)) continue;
         pending.push({ gid, name: friend.remark || friend.name || `GID:${gid}` });
     }
     return pending;
@@ -221,19 +222,27 @@ export function collectPendingFriends(friends: any[], myGid: number, blacklist: 
  * 整轮固定跑在 background 班次里：不管是定时器还是面板手动触发，都不许抢业务流量的槽位。
  */
 export function runFriendPetSync(): Promise<FriendPetSyncResult> {
-    return runWithRequestClass('background', runFriendPetSyncRound);
+    return runWithRequestClass('background', () => runFriendPetSyncRound(false));
 }
 
-async function runFriendPetSyncRound(): Promise<FriendPetSyncResult> {
+export function runManualFriendPetSync(): Promise<FriendPetSyncResult> {
+    if (syncRunning) return Promise.resolve({ outcome: 'skipped', reason: 'running' });
+    // Explicit user sync starts a fresh pass even if the automatic daily pass completed.
+    const { resetFullSyncDone } = require('./pet-cache');
+    resetFullSyncDone();
+    return runWithRequestClass('background', () => runFriendPetSyncRound(true));
+}
+
+async function runFriendPetSyncRound(manual: boolean): Promise<FriendPetSyncResult> {
     if (syncRunning) return { outcome: 'skipped', reason: 'running' };
     const generation = syncGeneration;
 
-    const gate: { enabled: boolean; reason: string } = isSyncEnabled();
+    const gate: { enabled: boolean; reason: string } = manual ? { enabled: true, reason: '' } : isSyncEnabled();
     if (!gate.enabled) return { outcome: 'skipped', reason: gate.reason };
     if (Date.now() < syncBlockedUntil) return { outcome: 'skipped', reason: 'gateway_cooldown' };
     if (isFullSyncDoneToday()) return { outcome: 'fresh', reason: 'done_today' };
     // 安静时段不进好友农场，与 checkFriends 保持一致；窗口结束后下一次定时检查会接上
-    if (visitStrategyRef().inFriendQuietHours()) return { outcome: 'skipped', reason: 'quiet_hours' };
+    if (!manual && visitStrategyRef().inFriendQuietHours()) return { outcome: 'skipped', reason: 'quiet_hours' };
 
     const state: any = getUserState();
     const myGid: number = toNum(state && state.gid);

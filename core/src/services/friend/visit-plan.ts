@@ -35,6 +35,7 @@ interface FriendVisitPlanInput {
     badBudget: number;
     /** 纯捣乱访问的数量上限（按等级降序取前 N 位）。 */
     maxBadOnlyVisits: number;
+    badTargetGids?: Set<number>;
 }
 
 interface FriendVisitTarget {
@@ -134,7 +135,8 @@ function buildFriendVisitPlan(input: FriendVisitPlanInput): FriendVisitPlan {
         }
         // 既没可偷也没可帮的好友才是捣乱对象：和旧逻辑一致，不在偷/帮的访问里顺手放草放虫，
         // 免得每日捣乱额度被花在错误的好友身上。
-        if (badAllowed && stealNum === 0 && helpNum === 0) {
+        const selectedBadTarget = !!input.badTargetGids?.size && input.badTargetGids.has(gid);
+        if (badAllowed && (!input.badTargetGids?.size || selectedBadTarget) && (selectedBadTarget || (stealNum === 0 && helpNum === 0))) {
             badOnly.push(target);
         }
     }

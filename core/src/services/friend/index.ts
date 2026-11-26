@@ -16,6 +16,7 @@ export {
 export {
     isFriendPetSyncRunning,
     runFriendPetSync,
+    runManualFriendPetSync,
     startFriendPetSyncTimer,
     stopFriendPetSyncTimer,
 } from './pet-sync';

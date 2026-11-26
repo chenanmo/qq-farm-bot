@@ -308,7 +308,8 @@ const localStrategySettings = ref({
   stealDelaySeconds: 0,
   plantOrderRandom: false,
   plantDelaySeconds: 0,
-  intervals: { farmMin: 2, farmMax: 5, friendMin: 10, friendMax: 15 },
+  friendBadTargetsText: '',
+  intervals: { farmMin: 2, farmMax: 5, friendMin: 10, friendMax: 15, helpMin: 10, helpMax: 15, stealMin: 10, stealMax: 15 },
   friendQuietHours: { enabled: false, start: '23:00', end: '07:00', continueFarm: true },
 })
 
@@ -781,6 +782,7 @@ function syncLocalStrategySettings() {
       plantOrderRandom: !!settings.value.plantOrderRandom,
       plantDelaySeconds: settings.value.plantDelaySeconds ?? 0,
       intervals: settings.value.intervals,
+      friendBadTargetsText: (settings.value.friendBadTargets || []).join(', '),
       friendQuietHours: {
         enabled: false,
         start: '23:00',
@@ -814,6 +816,8 @@ async function saveStrategySettings() {
   strategySaving.value = true
   try {
     const payload = JSON.parse(JSON.stringify(localStrategySettings.value))
+    payload.friendBadTargets = String(payload.friendBadTargetsText || '').split(/[\s,，;；]+/).map(Number).filter((gid: number) => Number.isSafeInteger(gid) && gid > 0)
+    delete payload.friendBadTargetsText
     if (payload.plantingStrategy === 'bag_priority') {
       bagSortRequestRevision++
       payload.bagSeedPriority = mergeVisibleBagSeedOrder(normalizeVisibleBagSeedOrder(payload.bagSeedPriority))
@@ -2059,18 +2063,27 @@ onBeforeUnmount(() => {
 
             <div class="grid grid-cols-2 gap-3 md:grid-cols-2">
               <BaseInput
-                v-model.number="localStrategySettings.intervals.friendMin"
-                label="好友任务最小 (秒)"
+                v-model.number="localStrategySettings.intervals.helpMin"
+                label="自动帮忙最小间隔 (秒)"
                 type="number"
                 min="1"
               />
               <BaseInput
-                v-model.number="localStrategySettings.intervals.friendMax"
-                label="好友任务最大 (秒)"
+                v-model.number="localStrategySettings.intervals.helpMax"
+                label="自动帮忙最大间隔 (秒)"
                 type="number"
                 min="1"
               />
             </div>
+            <div class="grid grid-cols-2 gap-3 md:grid-cols-2">
+              <BaseInput v-model.number="localStrategySettings.intervals.stealMin" label="自动偷菜最小间隔 (秒)" type="number" min="1" />
+              <BaseInput v-model.number="localStrategySettings.intervals.stealMax" label="自动偷菜最大间隔 (秒)" type="number" min="1" />
+            </div>
+            <BaseInput
+              v-model="localStrategySettings.friendBadTargetsText"
+              label="自动捣乱指定好友 GID（逗号或空格分隔，留空表示按原策略）"
+              placeholder="例如：12345678, 87654321"
+            />
 
             <div class="flex flex-wrap items-center gap-4 border-t pt-3 dark:border-gray-700">
               <BaseSwitch

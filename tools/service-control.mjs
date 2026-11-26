@@ -134,7 +134,7 @@ function getControlConfig(env = process.env) {
     const releasesDir = env.FARM_RELEASES_DIR
         ? path.resolve(env.FARM_RELEASES_DIR)
         : path.join(REPO_ROOT, 'releases');
-    const port = Number(env.ADMIN_PORT || env.FARM_PORT || env.PORT || 3007) || 3007;
+    const port = Number(env.ADMIN_PORT || env.FARM_PORT || env.PORT || 3008) || 3008;
     const stopTimeoutMs = Math.max(1000, Number(env.FARM_STOP_TIMEOUT_MS) || 15000);
     const startTimeoutMs = Math.max(2000, Number(env.FARM_START_TIMEOUT_MS) || 20000);
     return {

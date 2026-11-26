@@ -102,6 +102,7 @@ function getConfigSnapshot(accountId?: unknown): AccountConfig & { ui: typeof gl
         knownFriendGidSyncCooldownSec: cfg.knownFriendGidSyncCooldownSec,
         friendsListCacheTtlSec: cfg.friendsListCacheTtlSec,
         friendBlacklist: [...(cfg.friendBlacklist || [])],
+        friendBadTargets: [...(cfg.friendBadTargets || [])],
         ranchFriendBlacklist: [...(cfg.ranchFriendBlacklist || [])],
         plantBlacklist: [...(cfg.plantBlacklist || [])],
         stealDelaySeconds: Math.max(0, Math.min(300, Number(cfg.stealDelaySeconds) || 0)),
@@ -188,6 +189,9 @@ function applyConfigSnapshot(snapshot: Record<string, any> | undefined, options:
 
     if (Array.isArray(cfg.friendBlacklist)) {
         next.friendBlacklist = cfg.friendBlacklist.map(Number).filter((n: number) => Number.isFinite(n) && n > 0);
+    }
+    if (Array.isArray(cfg.friendBadTargets)) {
+        next.friendBadTargets = [...new Set(cfg.friendBadTargets.map(Number).filter((n: number) => Number.isSafeInteger(n) && n > 0))];
     }
 
     if (Array.isArray(cfg.ranchFriendBlacklist)) {
@@ -404,6 +408,10 @@ function setFriendsListCacheTtlSec(accountId: unknown, sec: unknown): number {
 
 function getFriendBlacklist(accountId?: unknown): number[] {
     return [...(getAccountConfigSnapshot(accountId).friendBlacklist || [])];
+}
+
+function getFriendBadTargets(accountId?: unknown): number[] {
+    return [...(getAccountConfigSnapshot(accountId).friendBadTargets || [])];
 }
 
 function setFriendBlacklist(accountId: unknown, list: unknown[]): number[] {

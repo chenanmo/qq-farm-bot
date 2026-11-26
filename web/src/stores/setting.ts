@@ -33,6 +33,8 @@ export interface AutomationConfig {
   ranch_share?: boolean
   ranch_daily_benefit?: boolean
   ranch_check_minutes?: number
+  ranch_check_min_seconds?: number
+  ranch_check_max_seconds?: number
   ranch_strategy?: string
   ranch_bag_fallback?: string
   ranch_coop_animal?: number
@@ -289,6 +291,7 @@ export interface SettingsState {
   bagSeedMultiLandReservationEnabled: boolean
   bagSeedLandTypes: Record<string, string[]>
   bagSeedFallbackStrategy: string
+  friendBadTargets: number[]
   intervals: IntervalsConfig
   friendQuietHours: FriendQuietHoursConfig
   automation: AutomationConfig
@@ -317,6 +320,7 @@ type SaveableSettingsKey
     | 'bagSeedMultiLandReservationEnabled'
     | 'bagSeedLandTypes'
     | 'bagSeedFallbackStrategy'
+    | 'friendBadTargets'
     | 'intervals'
     | 'friendQuietHours'
     | 'automation'
@@ -344,6 +348,7 @@ const SAVEABLE_SETTINGS_KEYS: SaveableSettingsKey[] = [
   'bagSeedMultiLandReservationEnabled',
   'bagSeedLandTypes',
   'bagSeedFallbackStrategy',
+  'friendBadTargets',
   'intervals',
   'friendQuietHours',
   'automation',
@@ -371,6 +376,7 @@ function createDefaultSettings(): SettingsState {
     bagSeedMultiLandReservationEnabled: false,
     bagSeedLandTypes: {},
     bagSeedFallbackStrategy: 'level',
+    friendBadTargets: [],
     intervals: {},
     friendQuietHours: { enabled: false, start: '23:00', end: '07:00', continueFarm: true },
     automation: {},
@@ -428,6 +434,7 @@ export const useSettingStore = defineStore('setting', () => {
       bagSeedMultiLandReservationEnabled: data.bagSeedMultiLandReservationEnabled ?? defaults.bagSeedMultiLandReservationEnabled,
       bagSeedLandTypes: cloneValue(data.bagSeedLandTypes ?? defaults.bagSeedLandTypes),
       bagSeedFallbackStrategy: data.bagSeedFallbackStrategy ?? defaults.bagSeedFallbackStrategy,
+      friendBadTargets: cloneValue(data.friendBadTargets ?? defaults.friendBadTargets),
       intervals: cloneValue(data.intervals || defaults.intervals),
       friendQuietHours: {
         ...defaults.friendQuietHours,

@@ -150,11 +150,29 @@ const activeTab = ref<TabKey>('friends')
 const friendsLoadedAccount = ref('')
 const blacklistLoadedAccount = ref('')
 const interactRecordsLoadedAccount = ref('')
+const petSyncRunning = ref(false)
 
 function setActiveTab(value: string) {
   if (TABS.some(tab => tab.key === value)) {
     activeTab.value = value as TabKey
     loadTabData()
+  }
+}
+
+async function syncFriendPetsNow() {
+  const accountId = currentAccountId.value
+  if (!accountId || petSyncRunning.value) return
+  petSyncRunning.value = true
+  try {
+    const result = await friendStore.syncFriendPets(accountId)
+    if (accountId !== currentAccountId.value || !result) return
+    toast.info(`宠物同步本轮结束：确认 ${Number(result.checked) || 0} 位，待补 ${Number(result.deferred) || 0} 位`)
+  }
+  catch (e: any) {
+    toast.error(getApiErrorMessage(e, '好友宠物同步失败'))
+  }
+  finally {
+    petSyncRunning.value = false
   }
 }
 
@@ -946,6 +964,16 @@ async function handleBatchAddKnownFriendGids() {
           <template #icon>
             <span class="i-carbon-renew" />
           </template>
+        </NButton>
+        <NButton
+          secondary
+          :loading="petSyncRunning"
+          :disabled="!currentAccountId || !currentAccountRunning"
+          title="手动同步好友宠物"
+          @click="syncFriendPetsNow"
+        >
+          <template #icon><span class="i-carbon-pet-image" /></template>
+          同步宠物
         </NButton>
       </div>
     </div>

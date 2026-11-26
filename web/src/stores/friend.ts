@@ -358,6 +358,13 @@ export const useFriendStore = defineStore('friend', () => {
     }
   }
 
+  async function syncFriendPets(accountId: string) {
+    if (!accountId || accountId !== accountStore.currentAccountId) return null
+    const res = await api.post('/api/friends/pet-sync', {}, { headers: { 'x-account-id': accountId } })
+    if (!res.data?.ok) throw new Error(getApiErrorMessage(res.data, '好友宠物同步失败'))
+    return res.data.data
+  }
+
   async function fetchFriendsCache(accountId: string) {
     if (!accountId || accountId !== accountStore.currentAccountId || loading.value)
       return
@@ -788,6 +795,7 @@ export const useFriendStore = defineStore('friend', () => {
     knownFriendSettingsLoading,
     knownFriendSettingsSaving,
     fetchFriends,
+    syncFriendPets,
     fetchFriendsCache,
     fetchBlacklist,
     toggleBlacklist,

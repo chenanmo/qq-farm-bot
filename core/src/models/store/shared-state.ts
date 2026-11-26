@@ -102,6 +102,7 @@ const DEFAULT_ACCOUNT_CONFIG: AccountConfig = {
     knownFriendGidSyncCooldownSec: DEFAULT_KNOWN_FRIEND_GID_SYNC_COOLDOWN_SEC,
     friendsListCacheTtlSec: DEFAULT_FRIENDS_LIST_CACHE_TTL_SEC,
     friendBlacklist: [],
+    friendBadTargets: [],
     ranchFriendBlacklist: [],
     plantBlacklist: [
         20002,
@@ -316,6 +317,7 @@ function cloneAccountConfig(base: Partial<AccountConfig> = DEFAULT_ACCOUNT_CONFI
         knownFriendGidSyncCooldownSec,
         friendsListCacheTtlSec,
         friendBlacklist: rawBlacklist.map(Number).filter(n => Number.isFinite(n) && n > 0),
+        friendBadTargets: Array.isArray(base.friendBadTargets) ? base.friendBadTargets.map(Number).filter(n => Number.isSafeInteger(n) && n > 0) : [],
         ranchFriendBlacklist: rawRanchFriendBlacklist.map(Number).filter(n => Number.isFinite(n) && n > 0),
         plantingStrategy: ALLOWED_PLANTING_STRATEGIES.includes(String(base.plantingStrategy || '') as PlantingStrategy)
             ? String(base.plantingStrategy) as PlantingStrategy

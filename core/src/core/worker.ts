@@ -43,6 +43,10 @@ const { setLogHook, log, logWarn, toNum, getSystemDateKey, formatSystemDateTime2
 interface WorkerRuntimeConfig {
     friendCheckIntervalMin: number;
     friendCheckIntervalMax: number;
+    friendHelpIntervalMin: number;
+    friendHelpIntervalMax: number;
+    friendStealIntervalMin: number;
+    friendStealIntervalMax: number;
     [key: string]: any;
 }
 
@@ -114,6 +118,9 @@ let farmTaskRunning: boolean = false;
 let nextFarmRunAt: number = 0;
 let friendTaskRunning: boolean = false;
 let nextFriendRunAt: number = 0;
+let nextHelpRunAt: number = 0;
+let nextStealRunAt: number = 0;
+let nextBadRunAt: number = 0;
 // 网关卡住时各定时任务的退避时长（毫秒），0 表示按正常间隔跑
 const businessBackoffMs: Record<string, number> = { farm: 0, friend: 0, ranch: 0 };
 let lastStatusHash: string = '';
@@ -250,7 +257,7 @@ function applyIntervalsToRuntime(intervals: any): void {
     CONFIG.farmCheckIntervalMax = farmRange.max * 1000;
     CONFIG.farmCheckInterval = CONFIG.farmCheckIntervalMin;
 
-    // 好友帮助、偷菜、放虫放草共用一个好友任务间隔。
+    // 帮忙、偷菜、捣乱各自维护周期；friendMin/Max 仅用于旧配置迁移后的捣乱周期。
     const helpMin = Number.parseInt(data.helpMin, 10) || 12;
     const helpMax = Number.parseInt(data.helpMax, 10) || 15;
     const stealMin = Number.parseInt(data.stealMin, 10) || 12;
@@ -260,6 +267,10 @@ function applyIntervalsToRuntime(intervals: any): void {
     const friendRange = normalizeIntervalRangeSec(friendMin, friendMax, 12);
     workerConfig.friendCheckIntervalMin = friendRange.min * 1000;
     workerConfig.friendCheckIntervalMax = friendRange.max * 1000;
+    workerConfig.friendHelpIntervalMin = normalizeIntervalRangeSec(helpMin, helpMax, 12).min * 1000;
+    workerConfig.friendHelpIntervalMax = normalizeIntervalRangeSec(helpMin, helpMax, 12).max * 1000;
+    workerConfig.friendStealIntervalMin = normalizeIntervalRangeSec(stealMin, stealMax, 12).min * 1000;
+    workerConfig.friendStealIntervalMax = normalizeIntervalRangeSec(stealMin, stealMax, 12).max * 1000;
 }
 
 function randomIntervalMs(minMs: number, maxMs: number): number {
@@ -282,6 +293,9 @@ function resetUnifiedSchedule(): void {
     const now = Date.now();
     nextFarmRunAt = now + farmMs;
     nextFriendRunAt = now + friendMs;
+    nextHelpRunAt = now + randomIntervalMs(workerConfig.friendHelpIntervalMin || friendMs, workerConfig.friendHelpIntervalMax || friendMs);
+    nextStealRunAt = now + randomIntervalMs(workerConfig.friendStealIntervalMin || friendMs, workerConfig.friendStealIntervalMax || friendMs);
+    nextBadRunAt = now + friendMs;
     businessBackoffMs.farm = 0;
     businessBackoffMs.friend = 0;
 }
@@ -362,7 +376,7 @@ async function runFarmTick(auto: any): Promise<void> {
     }
 }
 
-// ============ 好友统一任务：偷菜、帮助、放虫放草 ============
+// ============ 好友独立任务：自动帮忙、自动偷菜、自动捣乱 ============
 async function runFriendTick(auto: any): Promise<void> {
     if (friendTaskRunning) return;
     const generation = runtimeGeneration;
@@ -370,29 +384,51 @@ async function runFriendTick(auto: any): Promise<void> {
         workerConfig.friendCheckIntervalMin || 12000,
         workerConfig.friendCheckIntervalMax || 15000
     );
+    const helpMs = randomIntervalMs(workerConfig.friendHelpIntervalMin || friendMs, workerConfig.friendHelpIntervalMax || friendMs);
+    const stealMs = randomIntervalMs(workerConfig.friendStealIntervalMin || friendMs, workerConfig.friendStealIntervalMax || friendMs);
     // friend 总开关仍控制好友任务总入口；关闭时也要推进到期时间，避免调度器每秒空转。
     if (!auto.friend) {
-        nextFriendRunAt = Date.now() + friendMs;
+        nextHelpRunAt = Date.now() + helpMs;
+        nextStealRunAt = Date.now() + stealMs;
+        nextBadRunAt = Date.now() + friendMs;
+        nextFriendRunAt = Math.min(nextHelpRunAt, nextStealRunAt, nextBadRunAt);
         initialFriendCheckDone = true;
         return;
     }
 
     const friendDeferMs = nextBusinessTickDeferMs('friend');
     if (friendDeferMs > 0) {
-        nextFriendRunAt = Date.now() + friendDeferMs;
+        const retryAt = Date.now() + friendDeferMs;
+        nextHelpRunAt = Math.max(nextHelpRunAt, retryAt);
+        nextStealRunAt = Math.max(nextStealRunAt, retryAt);
+        nextBadRunAt = Math.max(nextBadRunAt, retryAt);
+        nextFriendRunAt = retryAt;
         return;
     }
 
     friendTaskRunning = true;
     try {
-        // checkFriends 内部保留各自开关、经验上限、黑名单和每日捣乱次数判断。
-        // 好友农场任务排在自己农场之后，前台操作永远优先于它。
-        await runWithRequestClass('friend', () => checkFriends());
+        // 各自动行为分别计时；checkFriends 仍负责黑名单、经验上限和每日配额。
+        await runWithRequestClass('friend', async () => {
+            const now = Date.now();
+            if (now >= nextHelpRunAt) {
+                nextHelpRunAt = now + helpMs;
+                if (auto.friend_help) await checkFriends({ onlyHelp: true });
+            }
+            if (now >= nextStealRunAt) {
+                nextStealRunAt = now + stealMs;
+                if (auto.friend_steal) await checkFriends({ onlySteal: true });
+            }
+            if (now >= nextBadRunAt) {
+                nextBadRunAt = now + friendMs;
+                if (auto.friend_bad) await checkFriends({ onlyBad: true });
+            }
+        });
     } catch (e: any) {
         log('系统', `好友统一任务执行失败: ${e.message}`, { module: 'system', event: '好友统一任务', result: 'error' });
     } finally {
         if (generation === runtimeGeneration) {
-            nextFriendRunAt = Date.now() + friendMs;
+            nextFriendRunAt = Math.min(nextHelpRunAt, nextStealRunAt, nextBadRunAt);
             friendTaskRunning = false;
             initialFriendCheckDone = true;
             scheduleUnifiedNextTick();
@@ -405,7 +441,7 @@ async function runUnifiedTick(): Promise<void> {
     const generation = runtimeGeneration;
     const now = Date.now();
     const dueFarm = now >= nextFarmRunAt;
-    const dueFriend = now >= nextFriendRunAt;
+    const dueFriend = now >= Math.min(nextHelpRunAt || nextFriendRunAt, nextStealRunAt || nextFriendRunAt, nextBadRunAt || nextFriendRunAt);
     if (!dueFarm && !dueFriend && now < ranchNextRunAt()) return;
 
     const auto = getAutomation();
@@ -426,7 +462,9 @@ function scheduleUnifiedNextTick(): void {
     const now = Date.now();
     const nextAt = Math.min(
         farmTaskRunning ? Number.POSITIVE_INFINITY : (Number(nextFarmRunAt) || (now + 1000)),
-        friendTaskRunning ? Number.POSITIVE_INFINITY : (Number(nextFriendRunAt) || (now + 1000)),
+        friendTaskRunning ? Number.POSITIVE_INFINITY : (Number(nextHelpRunAt) || (now + 1000)),
+        friendTaskRunning ? Number.POSITIVE_INFINITY : (Number(nextStealRunAt) || (now + 1000)),
+        friendTaskRunning ? Number.POSITIVE_INFINITY : (Number(nextBadRunAt) || (now + 1000)),
         ranchNextRunAt(),
     );
     if (!Number.isFinite(nextAt)) return;
@@ -967,6 +1005,9 @@ async function handleApiCall(msg: any): Promise<void> {
                 case 'getFriends':
                     result = await getFriendsList(args[0] === true, 'normal', args[1] === true);
                     if (args[2]) result = { data: result, partial: isFriendsListPartial() };
+                    break;
+                case 'syncFriendPets':
+                    result = await require('../services/friend').runManualFriendPetSync();
                     break;
                 case 'getFriendsCache':
                     result = getFriendsListCacheOnly();

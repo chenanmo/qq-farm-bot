@@ -21,6 +21,18 @@ const {
 function mountFriendRoutes(app: Application, ctx: AdminContext): void {
 
     // API: 好友列表
+    app.post('/api/friends/pet-sync', async (req: Request, res: Response) => {
+        const id = getAccId(ctx, req);
+        if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
+        try {
+            const data = await ctx.provider.syncFriendPets(id);
+            res.json({ ok: true, data });
+        } catch (e: any) {
+            handleApiError(res, e);
+        }
+    });
+
+    // API: 好友列表
     app.get('/api/friends', async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false });

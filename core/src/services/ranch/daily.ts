@@ -16,7 +16,13 @@ const gameDate = () => dailyShare.getState().dateKey;
 
 /** 失败后的重试间隔；每日任务完成进度随时变化，按较长间隔复查可领奖励，避免频繁切换场景。 */
 const RETRY_MS = 10 * 60 * 1000;
-const taskCheckMs = () => getAutomation().ranch_check_minutes * 60 * 1000;
+const taskCheckMs = () => {
+    const auto = getAutomation();
+    const legacy = Math.max(1, Number(auto.ranch_check_minutes) || 5) * 60;
+    const min = Math.max(1, Math.min(Number(auto.ranch_check_min_seconds) || legacy, Number(auto.ranch_check_max_seconds) || legacy));
+    const max = Math.max(min, Math.max(Number(auto.ranch_check_min_seconds) || legacy, Number(auto.ranch_check_max_seconds) || legacy));
+    return (min + Math.floor(Math.random() * (max - min + 1))) * 1000;
+};
 
 interface RoutineState {
     dateKey: string;

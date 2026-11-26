@@ -15,6 +15,7 @@ const { setOperationLimitsCallback } = require('../farm');
 const {
     isAutomationOn,
     getFriendBlacklist,
+    getFriendBadTargets,
     getStealDelaySeconds,
     getAutoAcceptFriendMinLevel,
     getAutoAcceptRequireOwnLevel,
@@ -357,6 +358,7 @@ export async function checkFriends(options: CheckFriendsOptions = {}): Promise<b
             getDogState: getFriendDogState,
             badBudget: getRemainingBadOperationTimes(),
             maxBadOnlyVisits: MAX_BAD_ONLY_VISITS_PER_ROUND,
+            badTargetGids: new Set(getFriendBadTargets(accountId)),
         });
 
         const totalActions: any = { steal: 0, farming: 0, putBug: 0, putWeed: 0 };

@@ -131,7 +131,10 @@ const ranchFeedStages = [
               <BaseInput v-model.number="settings.automation.ranch_grass_threshold_percent" class="w-full" label="牧草余量不超过（%）时补充" type="number" min="1" max="100" step="1" :disabled="!settings.automation.ranch_grass" />
             </div>
             <div class="automation-setting-item">
-              <BaseInput v-model.number="settings.automation.ranch_check_minutes" class="w-full" label="巡查间隔（分钟）" type="number" min="1" max="60" step="1" />
+              <BaseInput v-model.number="settings.automation.ranch_check_min_seconds" class="w-full" label="巡查随机间隔最小（秒）" type="number" min="1" max="86400" step="1" />
+            </div>
+            <div class="automation-setting-item">
+              <BaseInput v-model.number="settings.automation.ranch_check_max_seconds" class="w-full" label="巡查随机间隔最大（秒）" type="number" min="1" max="86400" step="1" />
             </div>
           </div>
           <div v-if="panel === 'automation'" class="mt-4">

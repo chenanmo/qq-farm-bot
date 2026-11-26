@@ -26,6 +26,7 @@ module.exports = {
     getFriendsListCacheTtlSec: accountConfig.getFriendsListCacheTtlSec,
     setFriendsListCacheTtlSec: accountConfig.setFriendsListCacheTtlSec,
     getFriendBlacklist: accountConfig.getFriendBlacklist,
+    getFriendBadTargets: accountConfig.getFriendBadTargets,
     setFriendBlacklist: accountConfig.setFriendBlacklist,
     addFriendToBlacklist: accountConfig.addFriendToBlacklist,
     getRanchFriendBlacklist: accountConfig.getRanchFriendBlacklist,

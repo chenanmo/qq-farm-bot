@@ -163,11 +163,20 @@ function selectAnimal(goods: any[], settings: RanchAutomationConfig, kind: numbe
     return candidates.sort((a, b) => level(b) - level(a) || b.animal.id - a.animal.id)[0];
 }
 
+function randomCheckIntervalMs(auto: RanchAutomationConfig): number {
+    const legacy = Math.max(1, Number(auto.ranch_check_minutes) || 5) * 60;
+    const rawMin = Number(auto.ranch_check_min_seconds) || legacy;
+    const rawMax = Number(auto.ranch_check_max_seconds) || legacy;
+    const min = Math.max(1, Math.min(rawMin, rawMax));
+    const max = Math.max(min, Math.max(rawMin, rawMax));
+    return (min + Math.floor(Math.random() * (max - min + 1))) * 1000;
+}
+
 async function run(options: { farmDeadline?: () => number; canContinue?: () => boolean } = {}): Promise<void> {
     if (getRoutineState().doneToday) return;
     const auto: RanchAutomationConfig = getAutomation();
     if (!cycleStartedAt) cycleStartedAt = Date.now();
-    nextCheckAt = cycleStartedAt + auto.ranch_check_minutes * 60_000;
+    nextCheckAt = cycleStartedAt + randomCheckIntervalMs(auto);
     const shedNotifyAtStart = shedNotifyRevision;
     try {
         if (options.canContinue?.() === false || Date.now() >= (options.farmDeadline?.() ?? Infinity)) {
@@ -595,7 +604,7 @@ async function run(options: { farmDeadline?: () => number; canContinue?: () => b
         }
         resetCycle(pendingFriend !== null);
         if (error.code === 'RANCH_AUTOMATION_DISABLED') return;
-        nextCheckAt = Date.now() + Math.max(auto.ranch_check_minutes, 10) * 60_000;
+        nextCheckAt = Date.now() + Math.max(randomCheckIntervalMs(auto), 10 * 60_000);
         retryAt = nextCheckAt;
         log('牧场', `日常牧场巡查失败：${error.message}`, { module: 'ranch', event: 'ranch_automation', result: 'error' });
     }

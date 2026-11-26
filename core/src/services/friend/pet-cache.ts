@@ -5,8 +5,8 @@
  * 因此所有进入好友农场的调用都顺手写入这里（偷菜、帮忙、捣乱、天气扫描、面板手动操作），
  * 真正额外花 RPC 的只有 pet-sync.ts 的每日补齐。
  *
- * 新鲜度按“系统日期”判定：好友随时可以换狗或让狗粮吃完，所以跨日的记录一律视为未知，
- * 由每日同步重新确认。
+ * “有宠物”的结论跨日保留，避免每天重复探测；“没有宠物”的结论按系统日期过期，
+ * 每日同步重新确认，方便发现后来新上场的宠物。
  */
 
 const crypto = require('node:crypto');
@@ -59,11 +59,12 @@ function loadCache(): Map<number, FriendDogEntry> {
                 for (const [key, value] of Object.entries(raw)) {
                     const gid: number = normalizeId(key);
                     const date: string = String((value as any)?.date || '');
-                    // 跨日记录没有价值，加载时直接丢掉，避免文件无限增长
-                    if (gid <= 0 || date !== today) continue;
+                    // 已确认有宠物的好友跨日保留；“没有宠物”的结论每天重新确认。
+                    const dogId = toNum((value as any)?.dogId);
+                    if (gid <= 0 || (date !== today && dogId <= 0)) continue;
                     loaded.set(gid, {
-                        dogId: toNum((value as any)?.dogId),
-                        date,
+                        dogId,
+                        date: dogId === PROTECT_DOG_ID ? date : today,
                         checkedAt: toNum((value as any)?.checkedAt),
                     });
                 }
@@ -101,7 +102,7 @@ function dropStaleEntries(): void {
     const today: string = getSystemDateKey();
     let changed: boolean = false;
     for (const [gid, entry] of store) {
-        if (entry.date !== today) {
+        if (entry.date !== today && entry.dogId <= 0) {
             store.delete(gid);
             changed = true;
         }
@@ -152,6 +153,12 @@ export function isFriendDogKnownToday(friendGid: any): boolean {
     return getFriendDogState(friendGid) !== 'unknown';
 }
 
+export function hasCachedDog(friendGid: any): boolean {
+    const gid: number = normalizeId(friendGid);
+    if (gid <= 0) return false;
+    return (loadCache().get(gid)?.dogId || 0) > 0;
+}
+
 export function getFriendDogId(friendGid: any): number {
     const gid: number = normalizeId(friendGid);
     if (gid <= 0) return 0;
@@ -180,6 +187,11 @@ export function flushFriendPetCacheNow(): void {
 
 export function markFullSyncDone(): void {
     lastFullSyncDate = getSystemDateKey();
+    flushCache();
+}
+
+export function resetFullSyncDone(): void {
+    lastFullSyncDate = '';
     flushCache();
 }
 

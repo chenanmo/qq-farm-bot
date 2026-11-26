@@ -34,6 +34,8 @@ export const RANCH_AUTOMATION_DEFAULTS = {
     ranch_share: true,
     ranch_daily_benefit: true,
     ranch_check_minutes: 5,
+    ranch_check_min_seconds: 240,
+    ranch_check_max_seconds: 360,
     ranch_strategy: 'level' as 'level' | 'preferred' | 'bag_priority',
     ranch_bag_fallback: 'level' as 'level' | 'preferred',
     ranch_coop_animal: 0,
@@ -79,6 +81,13 @@ export function normalizeRanchSetting(key: string, value: unknown): boolean | nu
         }
         return number;
     }
+    if (key === 'ranch_check_min_seconds' || key === 'ranch_check_max_seconds') {
+        const number = Number(value);
+        if (!Number.isInteger(number) || number < 1 || number > 86400) {
+            throw Object.assign(new Error('牧场巡查随机间隔必须是 1–86400 秒的整数'), { code: 'INVALID_CONFIG' });
+        }
+        return number;
+    }
     if (key === 'ranch_grass_threshold_percent') {
         const number = Number(value);
         if (!Number.isInteger(number) || number < 1 || number > 100) {
@@ -99,6 +108,11 @@ export const RANCH_MARKET_SWITCH_KEYS = Object.values(RANCH_MARKET_SWITCH_BY_CUR
 /** 旧配置的总开关只填充缺失的新字段，已明确设置的独立开关优先。 */
 export function migrateRanchMarketAutomation(input: Record<string, any>): Record<string, any> {
     const result = { ...input };
+    if (result.ranch_check_minutes !== undefined) {
+        const legacySeconds = Math.max(1, Number(result.ranch_check_minutes) || 5) * 60;
+        if (result.ranch_check_min_seconds === undefined) result.ranch_check_min_seconds = legacySeconds;
+        if (result.ranch_check_max_seconds === undefined) result.ranch_check_max_seconds = legacySeconds;
+    }
     if (typeof result.ranch_market_organic === 'boolean') {
         for (const key of RANCH_MARKET_SWITCH_KEYS) {
             if (result[key] === undefined) result[key] = result.ranch_market_organic;

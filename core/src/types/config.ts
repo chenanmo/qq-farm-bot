@@ -78,6 +78,7 @@ export interface AccountConfig {
   knownFriendGidSyncCooldownSec: number;
   friendsListCacheTtlSec: number;
   friendBlacklist: number[];
+  friendBadTargets: number[];
   ranchFriendBlacklist: number[];
   plantBlacklist: number[];
   stealDelaySeconds: number;
