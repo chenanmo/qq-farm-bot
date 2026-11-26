@@ -86,6 +86,7 @@ function createRuntimeEngine(options: RuntimeEngineOptions = {}) {
         sendConfiguredPush,
         addOrUpdateAccount: store.addOrUpdateAccount,
         deleteAccount: store.deleteAccount,
+        getAccountById: (accountId: string) => (store.getAccounts().accounts || []).find((account: any) => String(account.id) === String(accountId)),
         onStatusSync: (accountId: string, status: any, accountName?: string) => {
             runtimeEvents.emit('status', { accountId, status, accountName });
             if (onStatusSync) onStatusSync(accountId, status, accountName);

@@ -291,11 +291,13 @@ function resetUnifiedSchedule(): void {
         workerConfig.friendCheckIntervalMax || 15000
     );
     const now = Date.now();
+    const auto = getAutomation();
     nextFarmRunAt = now + farmMs;
-    nextFriendRunAt = now + friendMs;
-    nextHelpRunAt = now + randomIntervalMs(workerConfig.friendHelpIntervalMin || friendMs, workerConfig.friendHelpIntervalMax || friendMs);
-    nextStealRunAt = now + randomIntervalMs(workerConfig.friendStealIntervalMin || friendMs, workerConfig.friendStealIntervalMax || friendMs);
-    nextBadRunAt = now + friendMs;
+    nextHelpRunAt = auto.friend && auto.friend_help ? now + randomIntervalMs(workerConfig.friendHelpIntervalMin || friendMs, workerConfig.friendHelpIntervalMax || friendMs) : Number.POSITIVE_INFINITY;
+    nextStealRunAt = auto.friend && auto.friend_steal ? now + randomIntervalMs(workerConfig.friendStealIntervalMin || friendMs, workerConfig.friendStealIntervalMax || friendMs) : Number.POSITIVE_INFINITY;
+    nextBadRunAt = auto.friend && auto.friend_bad ? now + friendMs : Number.POSITIVE_INFINITY;
+    nextFriendRunAt = Math.min(nextHelpRunAt, nextStealRunAt, nextBadRunAt);
+    if (!Number.isFinite(nextFriendRunAt)) initialFriendCheckDone = true;
     businessBackoffMs.farm = 0;
     businessBackoffMs.friend = 0;
 }
@@ -388,10 +390,10 @@ async function runFriendTick(auto: any): Promise<void> {
     const stealMs = randomIntervalMs(workerConfig.friendStealIntervalMin || friendMs, workerConfig.friendStealIntervalMax || friendMs);
     // friend 总开关仍控制好友任务总入口；关闭时也要推进到期时间，避免调度器每秒空转。
     if (!auto.friend) {
-        nextHelpRunAt = Date.now() + helpMs;
-        nextStealRunAt = Date.now() + stealMs;
-        nextBadRunAt = Date.now() + friendMs;
-        nextFriendRunAt = Math.min(nextHelpRunAt, nextStealRunAt, nextBadRunAt);
+        nextHelpRunAt = Number.POSITIVE_INFINITY;
+        nextStealRunAt = Number.POSITIVE_INFINITY;
+        nextBadRunAt = Number.POSITIVE_INFINITY;
+        nextFriendRunAt = Number.POSITIVE_INFINITY;
         initialFriendCheckDone = true;
         return;
     }
@@ -399,10 +401,10 @@ async function runFriendTick(auto: any): Promise<void> {
     const friendDeferMs = nextBusinessTickDeferMs('friend');
     if (friendDeferMs > 0) {
         const retryAt = Date.now() + friendDeferMs;
-        nextHelpRunAt = Math.max(nextHelpRunAt, retryAt);
-        nextStealRunAt = Math.max(nextStealRunAt, retryAt);
-        nextBadRunAt = Math.max(nextBadRunAt, retryAt);
-        nextFriendRunAt = retryAt;
+        if (auto.friend_help) nextHelpRunAt = Math.max(nextHelpRunAt, retryAt);
+        if (auto.friend_steal) nextStealRunAt = Math.max(nextStealRunAt, retryAt);
+        if (auto.friend_bad) nextBadRunAt = Math.max(nextBadRunAt, retryAt);
+        nextFriendRunAt = Math.min(nextHelpRunAt, nextStealRunAt, nextBadRunAt);
         return;
     }
 
@@ -411,15 +413,15 @@ async function runFriendTick(auto: any): Promise<void> {
         // 各自动行为分别计时；checkFriends 仍负责黑名单、经验上限和每日配额。
         await runWithRequestClass('friend', async () => {
             const now = Date.now();
-            if (now >= nextHelpRunAt) {
+            if (auto.friend_help && now >= nextHelpRunAt) {
                 nextHelpRunAt = now + helpMs;
                 if (auto.friend_help) await checkFriends({ onlyHelp: true });
             }
-            if (now >= nextStealRunAt) {
+            if (auto.friend_steal && now >= nextStealRunAt) {
                 nextStealRunAt = now + stealMs;
                 if (auto.friend_steal) await checkFriends({ onlySteal: true });
             }
-            if (now >= nextBadRunAt) {
+            if (auto.friend_bad && now >= nextBadRunAt) {
                 nextBadRunAt = now + friendMs;
                 if (auto.friend_bad) await checkFriends({ onlyBad: true });
             }
@@ -1471,18 +1473,29 @@ function syncStatus(force: boolean = false): void {
     const limits = require('../services/friend').getOperationLimits();
     const fullStats = require('../services/stats').getStats(statusData, userState, connected, limits);
     const nowMs = Date.now();
+    const auto = getAutomation();
     const farmRemainSec = Math.max(0, Math.ceil((Number(nextFarmRunAt || 0) - nowMs) / 1000));
     const helpRemainSec = Math.max(0, Math.ceil((Number(nextHelpRunAt || 0) - nowMs) / 1000));
     const stealRemainSec = Math.max(0, Math.ceil((Number(nextStealRunAt || 0) - nowMs) / 1000));
     const badRemainSec = Math.max(0, Math.ceil((Number(nextBadRunAt || 0) - nowMs) / 1000));
+    const ranchState = ranchAutomation.getRoutineState();
+    const ranchEnabled = Object.entries(auto).some(([key, value]) => key.startsWith('ranch_') && typeof value === 'boolean' && value);
+    const ranchNextAt = Number(ranchState.nextCheckAt);
     const visitStrategy = require('../services/friend/visit-strategy');
     const friendQuiet = !!visitStrategy.inFriendQuietHours();
     const farmQuiet = !!visitStrategy.inFarmQuietHours();
     fullStats.nextChecks = {
         farmRemainSec,
+        farmEnabled: !!auto.farm,
         helpRemainSec,
         stealRemainSec,
         badRemainSec,
+        helpEnabled: !!auto.friend && !!auto.friend_help,
+        stealEnabled: !!auto.friend && !!auto.friend_steal,
+        badEnabled: !!auto.friend && !!auto.friend_bad,
+        ranchEnabled,
+        ranchDoneToday: !!ranchState.doneToday,
+        ranchRemainSec: ranchEnabled && Number.isFinite(ranchNextAt) ? Math.max(0, Math.ceil((ranchNextAt - nowMs) / 1000)) : null,
         friendRemainSec: Math.min(helpRemainSec, stealRemainSec, badRemainSec),
         farmQuiet,
         friendQuiet,
@@ -1491,7 +1504,7 @@ function syncStatus(force: boolean = false): void {
         badQuiet: friendQuiet,
     };
 
-    fullStats.automation = getAutomation();
+    fullStats.automation = auto;
     fullStats.preferredSeed = getPreferredSeed();
     fullStats.levelProgress = expProgress;
     fullStats.levelForecast = require('../services/level-forecast').getLevelForecast(

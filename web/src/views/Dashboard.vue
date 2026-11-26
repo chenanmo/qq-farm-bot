@@ -89,11 +89,13 @@ const nextFarmCheck = ref('--:--:--')
 const nextHelpCheck = ref('--:--:--')
 const nextStealCheck = ref('--:--:--')
 const nextBadCheck = ref('--:--:--')
+const nextRanchCheck = ref('--:--:--')
 const localUptime = ref(0)
 let localNextFarmRemainSec = 0
 let localNextHelpRemainSec = 0
 let localNextStealRemainSec = 0
 let localNextBadRemainSec = 0
+let localNextRanchRemainSec = 0
 let farmQuiet = false
 let helpQuiet = false
 let stealQuiet = false
@@ -106,10 +108,14 @@ function updateCountdowns() {
     nextHelpCheck.value = '账号未登录'
     nextStealCheck.value = '账号未登录'
     nextBadCheck.value = '账号未登录'
+    nextRanchCheck.value = '账号未登录'
   }
   else {
     localUptime.value++
-    if (farmQuiet) {
+    if (status.value?.nextChecks?.farmEnabled === false || status.value?.automation?.farm === false) {
+      nextFarmCheck.value = '未开启此功能'
+    }
+    else if (farmQuiet) {
       nextFarmCheck.value = '静默中'
     }
     else if (localNextFarmRemainSec > 0) {
@@ -120,17 +126,28 @@ function updateCountdowns() {
       nextFarmCheck.value = '巡查中...'
     }
 
-    const updateFriendCountdown = (quiet: boolean, remain: number, setValue: (value: string) => void, setRemain: (value: number) => void) => {
-      if (quiet) setValue('静默中')
+    const updateFriendCountdown = (enabled: boolean, quiet: boolean, remain: number, setValue: (value: string) => void, setRemain: (value: number) => void) => {
+      if (!enabled) setValue('未开启此功能')
+      else if (quiet) setValue('静默中')
       else if (remain > 0) {
         setRemain(remain - 1)
         setValue(formatDuration(remain))
       }
       else setValue('巡查中...')
     }
-    updateFriendCountdown(helpQuiet, localNextHelpRemainSec, value => nextHelpCheck.value = value, value => localNextHelpRemainSec = value)
-    updateFriendCountdown(stealQuiet, localNextStealRemainSec, value => nextStealCheck.value = value, value => localNextStealRemainSec = value)
-    updateFriendCountdown(badQuiet, localNextBadRemainSec, value => nextBadCheck.value = value, value => localNextBadRemainSec = value)
+    const nextChecks = status.value?.nextChecks || {}
+    const automation = status.value?.automation || {}
+    updateFriendCountdown(nextChecks.helpEnabled ?? (!!automation.friend && !!automation.friend_help), helpQuiet, localNextHelpRemainSec, value => nextHelpCheck.value = value, value => localNextHelpRemainSec = value)
+    updateFriendCountdown(nextChecks.stealEnabled ?? (!!automation.friend && !!automation.friend_steal), stealQuiet, localNextStealRemainSec, value => nextStealCheck.value = value, value => localNextStealRemainSec = value)
+    updateFriendCountdown(nextChecks.badEnabled ?? (!!automation.friend && !!automation.friend_bad), badQuiet, localNextBadRemainSec, value => nextBadCheck.value = value, value => localNextBadRemainSec = value)
+    const ranchEnabled = nextChecks.ranchEnabled ?? Object.entries(automation).some(([key, enabled]) => key.startsWith('ranch_') && enabled === true)
+    if (!ranchEnabled) nextRanchCheck.value = '未开启此功能'
+    else if (nextChecks.ranchRemainSec == null && nextChecks.ranchDoneToday) nextRanchCheck.value = '暂无待巡查任务'
+    else if (localNextRanchRemainSec > 0) {
+      nextRanchCheck.value = formatDuration(localNextRanchRemainSec)
+      localNextRanchRemainSec--
+    }
+    else nextRanchCheck.value = '巡查中...'
   }
 }
 
@@ -143,6 +160,7 @@ watch(() => status.value?.nextChecks, (nextChecks) => {
     localNextHelpRemainSec = nextChecks.helpRemainSec ?? nextChecks.friendRemainSec ?? 0
     localNextStealRemainSec = nextChecks.stealRemainSec ?? nextChecks.friendRemainSec ?? 0
     localNextBadRemainSec = nextChecks.badRemainSec ?? nextChecks.friendRemainSec ?? 0
+    localNextRanchRemainSec = nextChecks.ranchRemainSec ?? 0
     farmQuiet = !!nextChecks.farmQuiet
     helpQuiet = nextChecks.helpQuiet ?? nextChecks.friendQuiet ?? false
     stealQuiet = nextChecks.stealQuiet ?? nextChecks.friendQuiet ?? false
@@ -467,6 +485,15 @@ useIntervalFn(updateCountdowns, 1000)
               </div>
               <div class="text-lg tabular-nums font-bold">
                 {{ nextBadCheck }}
+              </div>
+            </div>
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                <span class="i-carbon-cow text-lg text-amber-600" />
+                <span>牧场</span>
+              </div>
+              <div class="text-lg tabular-nums font-bold">
+                {{ nextRanchCheck }}
               </div>
             </div>
           </div>

@@ -37,6 +37,7 @@ interface WorkerManagerOptions {
     sendConfiguredPush?: (payload: any) => Promise<void> | void;
     addOrUpdateAccount: (acc: any) => any;
     deleteAccount: (id: string) => void;
+    getAccountById?: (id: string) => any;
     onStatusSync?: (accountId: string, status: any, accountName?: string) => void;
     onWorkerLog?: (entry: any, accountId: string, accountName?: string) => void;
 }
@@ -60,6 +61,7 @@ function createWorkerManager(options: WorkerManagerOptions) {
         sendConfiguredPush,
         addOrUpdateAccount,
         deleteAccount,
+        getAccountById,
         onStatusSync,
         onWorkerLog,
     } = options;
@@ -69,6 +71,8 @@ function createWorkerManager(options: WorkerManagerOptions) {
     const managed = Boolean(processRef.env.FARM_SESSION_SOCKET);
     const tracker = managed && !useThreadRuntime ? new BackendChildTracker(path.join(getRuntimePaths().runtimeDir, 'backend-children.json')) : null;
     let shuttingDown = false;
+    const oldCodeRetryAt = new Map<string, number>();
+    const OLD_CODE_RETRY_COOLDOWN_MS = 10 * 60_000;
 
     function createThreadWorker(account: any): any {
         const workerOptions: any = {
@@ -434,6 +438,12 @@ function createWorkerManager(options: WorkerManagerOptions) {
             const code = Number(msg.code) || 0;
             const reason = String(msg.reason || '连接已断开');
             const phase = String(msg.phase || 'unknown');
+            const now = Date.now();
+            const lastOldCodeRetryAt = oldCodeRetryAt.get(accountId) || 0;
+            const canRetryOldCode = phase === 'online'
+                && (source === 'heartbeat_timeout' || source === 'ws_close')
+                && code !== 400
+                && now - lastOldCodeRetryAt >= OLD_CODE_RETRY_COOLDOWN_MS;
             if (worker.status?.connection) worker.status.connection.connected = false;
             if (worker.requests.size > 0) {
                 for (const [reqId, req] of worker.requests.entries()) {
@@ -442,7 +452,25 @@ function createWorkerManager(options: WorkerManagerOptions) {
                 }
                 worker.requests.clear();
             }
-            log('系统', `账号 ${worker.name} 连接已断开，已停止运行并等待 Helper 刷新 Code 或重新扫码`, {
+            if (canRetryOldCode) {
+                oldCodeRetryAt.set(accountId, now);
+                const account = getAccountById?.(accountId);
+                log('系统', `账号 ${worker.name} 已登录后断开，使用原 Code 尝试重连一次`, {
+                    accountId, accountName: worker.name, source, disconnectCode: code, phase, retryLimitMinutes: 10,
+                });
+                addAccountLog('old_code_retry', `账号 ${worker.name} 断线后使用原 Code 尝试重连一次`, accountId, worker.name, {
+                    source, disconnectCode: code, phase,
+                });
+                if (account?.code) {
+                    void Promise.resolve(stopAccountWorker(account)).then(() => startAccountWorker(account)).catch((error: any) => {
+                        log('错误', `账号 ${worker.name} 使用原 Code 重连失败: ${error?.message || error}`, { accountId, accountName: worker.name });
+                        triggerOfflineReminder({ accountId, accountName: worker.name, reason: `old_code_retry_failed:${source}`, offlineMs: 0 });
+                    });
+                    return;
+                }
+                log('系统', `账号 ${worker.name} 没有可用的已保存 Code，无法自动重连`, { accountId, accountName: worker.name });
+            }
+            log('系统', `账号 ${worker.name} 连接已断开，已停止运行并等待重新扫码`, {
                 accountId: String(accountId),
                 accountName: worker.name,
                 source,
@@ -459,7 +487,7 @@ function createWorkerManager(options: WorkerManagerOptions) {
             });
             addAccountLog(
                 'disconnect_stop',
-                `账号 ${worker.name} 连接已断开，已停止运行并等待 Helper 刷新 Code 或重新扫码`,
+                canRetryOldCode ? `账号 ${worker.name} 原 Code 重试不可用或已达限制，请重新扫码` : `账号 ${worker.name} 连接已断开，等待重新扫码`,
                 accountId,
                 worker.name,
                 { source, disconnectCode: code, reason, phase, connectionId: Number(msg.connectionId) || 0, diagnostics: msg.diagnostics || null },
