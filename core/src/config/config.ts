@@ -1,4 +1,18 @@
 export {};
+const fs = require('node:fs');
+const path = require('node:path');
+
+function readConfiguredPort(): number {
+    try {
+        const envPath = path.resolve(__dirname, '../../../.env');
+        const content = fs.readFileSync(envPath, 'utf8');
+        const match = content.match(/^\s*(?:export\s+)?PORT\s*=\s*['"]?([^\s'"#]+)['"]?\s*(?:#.*)?$/m);
+        const port = Number(match?.[1]);
+        return Number.isInteger(port) && port > 0 && port <= 65535 ? port : 0;
+    } catch {
+        return 0;
+    }
+}
 interface DeviceInfo {
     os: string;
     clientVersion: string;
@@ -220,7 +234,7 @@ const CONFIG: RuntimeConfig = {
     farmCheckIntervalMax: 5000,
     friendCheckIntervalMin: 12000,
     friendCheckIntervalMax: 15000,
-    adminPort: Number(process.env.ADMIN_PORT),
+    adminPort: Number(process.env.ADMIN_PORT || process.env.FARM_PORT || process.env.PORT || readConfiguredPort() || 3008),
     adminPassword: process.env.ADMIN_PASSWORD,
 };
 
