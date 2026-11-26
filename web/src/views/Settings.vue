@@ -769,6 +769,18 @@ watch(() => [
 const savedStrategySnapshot = ref('')
 const savedAutomationSnapshot = ref('')
 const savedOfflineSnapshot = ref('')
+const friendBadTargetGids = computed(() => [...new Set(
+  String(localStrategySettings.value.friendBadTargetsText || '')
+    .split(/[\s,，;；]+/)
+    .map((value: string) => Number(value))
+    .filter((gid: number) => Number.isSafeInteger(gid) && gid > 0),
+)])
+
+function removeFriendBadTarget(gid: number) {
+  localStrategySettings.value.friendBadTargetsText = friendBadTargetGids.value
+    .filter((target: number) => target !== gid)
+    .join(', ')
+}
 
 function syncLocalStrategySettings() {
   if (settings.value) {
@@ -2086,6 +2098,26 @@ onBeforeUnmount(() => {
               label="自动捣乱指定好友 GID（逗号或空格分隔，留空表示按原策略）"
               placeholder="例如：12345678, 87654321"
             />
+            <div class="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800/50">
+              <div class="mb-2 flex items-center justify-between gap-2">
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-200">已指定的好友</span>
+                <span class="text-xs text-gray-500">{{ friendBadTargetGids.length }} 位</span>
+              </div>
+              <div v-if="friendBadTargetGids.length" class="flex flex-wrap gap-2">
+                <div
+                  v-for="gid in friendBadTargetGids"
+                  :key="gid"
+                  class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 dark:border-gray-700 dark:bg-gray-900"
+                >
+                  <span class="text-sm text-gray-700 dark:text-gray-200">GID {{ gid }}</span>
+                  <NButton size="tiny" quaternary type="error" @click="removeFriendBadTarget(gid)">
+                    删除
+                  </NButton>
+                </div>
+              </div>
+              <p v-else class="text-xs text-gray-500">还没有指定好友。添加 GID 后会显示在这里。</p>
+              <p v-if="friendBadTargetGids.length" class="mt-2 text-xs text-gray-500">删除后点击页面下方“保存策略”使更改生效。</p>
+            </div>
 
             <div class="flex flex-wrap items-center gap-4 border-t pt-3 dark:border-gray-700">
               <BaseSwitch
