@@ -23,7 +23,7 @@ export {};
 const YSHF_GROUP_ID = '2026111707';
 const YSHF_ACTIVITY_ID = '2026111708';
 const YSHF_SEED_ITEM_ID = '20307';
-const YSHF_SWEET_POTATO_ITEM_ID = '1032';
+const YSHF_SWEET_POTATO_ITEM_ID = '40307';
 const YSHF_LUCK_COIN_ITEM_ID = '1033';
 
 const YSHF_CMD_CLAIM_SEED = 91;
@@ -93,7 +93,7 @@ const YSHF_ITEM_NAMES: Record<string, string> = {
 
 const YSHF_ITEM_IMAGES: Record<string, string> = {
     '20307': '/activity-assets/yishu-huanfu/sweet-potato-seed.svg',
-    '1032': '/activity-assets/yishu-huanfu/sweet-potato.svg',
+    '40307': '/activity-assets/yishu-huanfu/sweet-potato.svg',
     '1033': '/activity-assets/yishu-huanfu/luck-coin.svg',
     '204013': '/activity-assets/yishu-huanfu/reward.svg',
     '101627': '/activity-assets/yishu-huanfu/reward.svg',

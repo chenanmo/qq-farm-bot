@@ -152,6 +152,13 @@ const shopGoodsMap = new Map(shopGoodsConfig.map(goods => [goods.id, goods]));
 const itemImageIds = new Set<number>();
 const iconImageIds = new Map<string, number>();
 const assetImageIds = new Map<string, number>();
+const ACTIVITY_ITEM_IMAGE_PATHS: Record<number, string> = {
+    1033: '/activity-assets/yishu-huanfu/luck-coin.svg',
+    20307: '/activity-assets/yishu-huanfu/sweet-potato-seed.svg',
+    40307: '/activity-assets/yishu-huanfu/sweet-potato.svg',
+    1040307: '/activity-assets/yishu-huanfu/mutant-sweet-potato.svg',
+    101627: '/activity-assets/yishu-huanfu/reward.svg',
+};
 let landConfig: LandConfigItem[] | null = null;
 const landConfigMap = new Map<number, LandConfigItem>();
 const landCoordinateMap = new Map<string, LandConfigItem>();
@@ -466,6 +473,8 @@ function getSeedImageBySeedId(seedId: number): string {
 function getItemImageById(itemId: number): string {
     const id = Number(itemId);
     if (!Number.isSafeInteger(id) || id <= 0) return '';
+
+    if (ACTIVITY_ITEM_IMAGE_PATHS[id]) return ACTIVITY_ITEM_IMAGE_PATHS[id];
 
     let imageId = itemImageIds.has(id) ? id : 0;
     const item = itemInfoMap.get(id);
