@@ -557,7 +557,7 @@ const petDiaryService = createPetDiaryService({
 const { getUserState: getNetworkUserState } = require('../utils/network');
 const yishuHuanfuService = createYishuHuanfuActivityService({
     types, sendMsgAsync, getBag, getSystemDateKey, getServerTimeSec,
-    int64String, int64Number, bytesToText, itemDto, textContent,
+    int64String, int64Number, bytesToText, itemDto, getItemImageById, textContent,
     businessError, positiveDecimal, activityWindowIsActive, readBagBalances,
     serializeMutation, getActivityCenterSnapshot, getUserState: getNetworkUserState, getAllFriends,
 });

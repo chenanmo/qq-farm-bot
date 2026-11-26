@@ -83,6 +83,40 @@ const YSHF_CATALOG_TEMPLATE: Record<number, { itemId: string; name: string; pric
     10: { itemId: '80001', name: '化肥(1小时)', price: '7000' },
 };
 
+const YSHF_ITEM_NAMES: Record<string, string> = {
+    [YSHF_SEED_ITEM_ID]: '红薯种子',
+    [YSHF_SWEET_POTATO_ITEM_ID]: '蜜薯',
+    [YSHF_LUCK_COIN_ITEM_ID]: '福气币',
+    '204013': '七彩花弦',
+    '101627': '福气金豆礼包',
+};
+
+const YSHF_ITEM_IMAGES: Record<string, string> = {
+    '20307': '/activity-assets/yishu-huanfu/sweet-potato-seed.svg',
+    '1032': '/activity-assets/yishu-huanfu/sweet-potato.svg',
+    '1033': '/activity-assets/yishu-huanfu/luck-coin.svg',
+    '204013': '/activity-assets/yishu-huanfu/reward.svg',
+    '101627': '/activity-assets/yishu-huanfu/reward.svg',
+};
+
+function yshfItemDto(itemId: string, count: unknown, getItemImageById: (id: number) => string) {
+    return {
+        id: itemId,
+        count: String(count ?? '0'),
+        name: YSHF_ITEM_NAMES[itemId] || '',
+        image: YSHF_ITEM_IMAGES[itemId] || getItemImageById(Number(itemId)) || '',
+        rarity: 0,
+    };
+}
+
+function yshfRules(value: any): string[] {
+    if (Array.isArray(value)) return value.map(entry => String(entry || '').trim()).filter(Boolean);
+    if (!value || typeof value !== 'object') return [];
+    return [value.title, ...(Array.isArray(value.paragraphs) ? value.paragraphs : [])]
+        .map(entry => String(entry || '').trim())
+        .filter(Boolean);
+}
+
 function createYishuHuanfuActivityService(deps: any) {
     const {
         types,
@@ -94,6 +128,7 @@ function createYishuHuanfuActivityService(deps: any) {
         int64Number,
         bytesToText,
         itemDto,
+        getItemImageById,
         textContent,
         businessError,
         positiveDecimal,
@@ -191,7 +226,7 @@ function createYishuHuanfuActivityService(deps: any) {
                 status: int64Number(entry?.status),
                 limit,
                 exchangedToday,
-                image: itemId ? itemDto({ item_id: itemId, count: '1' }).image : '',
+                image: itemId ? (YSHF_ITEM_IMAGES[itemId] || getItemImageById(Number(itemId)) || '') : '',
                 exchangeable: true,
             };
         });
@@ -247,7 +282,7 @@ function createYishuHuanfuActivityService(deps: any) {
             name: bytesToText(activity.name) || '以薯换福',
             startTime: int64String(activity.begin_time),
             endTime: int64String(activity.end_time),
-            rules: textContent(activity.extra),
+            rules: yshfRules(textContent(activity.extra)),
             active,
             serverTime: String(getServerTimeSec()),
             shop: {
@@ -267,17 +302,17 @@ function createYishuHuanfuActivityService(deps: any) {
                 quotaUsed: null,
             },
             seed: {
-                ...itemDto({ item_id: YSHF_SEED_ITEM_ID, count: seedBalance || '0' }),
+                ...yshfItemDto(YSHF_SEED_ITEM_ID, seedBalance, getItemImageById),
                 balance: seedBalance,
                 balanceKnown: balances !== null,
             },
             sweetPotato: {
-                ...itemDto({ item_id: YSHF_SWEET_POTATO_ITEM_ID, count: sweetPotatoBalance || '0' }),
+                ...yshfItemDto(YSHF_SWEET_POTATO_ITEM_ID, sweetPotatoBalance, getItemImageById),
                 balance: sweetPotatoBalance,
                 balanceKnown: balances !== null,
             },
             luckCoin: {
-                ...itemDto({ item_id: YSHF_LUCK_COIN_ITEM_ID, count: luckCoinBalance || '0' }),
+                ...yshfItemDto(YSHF_LUCK_COIN_ITEM_ID, luckCoinBalance, getItemImageById),
                 balance: luckCoinBalance,
                 balanceKnown: luckCoinBalance !== null,
             },
@@ -890,7 +925,11 @@ function createYishuHuanfuActivityService(deps: any) {
                 price: result ? int64String(result.price) : goods.price,
                 cost: cost.toString(),
                 balance: nextBalance,
-                reward: itemId ? itemDto({ item_id: itemId, count: granted }) : null,
+                reward: itemId ? {
+                    ...itemDto({ item_id: itemId, count: granted }),
+                    name: itemDto({ item_id: itemId, count: granted }).name || goods.name,
+                    image: YSHF_ITEM_IMAGES[itemId] || getItemImageById(Number(itemId)) || '',
+                } : null,
                 message: `兑换成功：${goods.nameKnown ? goods.name : `第 ${index} 档`} × ${granted}`,
                 snapshot: await getActivityCenterSnapshot(),
             };
@@ -951,7 +990,7 @@ function createYishuHuanfuActivityService(deps: any) {
             const count = grant ? int64String(grant.count) : YSHF_SHARE_SEED_FALLBACK;
             return {
                 count,
-                seedReward: grant ? itemDto({ item_id: int64String(grant.item_id), count }) : null,
+                seedReward: grant ? yshfItemDto(int64String(grant.item_id), count, getItemImageById) : null,
                 price: share ? int64String(share.price) : snapshot.shop.price,
                 shareKey: share?.shop?.share_key || '',
                 shareReported,

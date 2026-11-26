@@ -69,6 +69,10 @@ function recordTime(value: string) {
   const seconds = num(value)
   return seconds ? new Date(seconds * 1000).toLocaleString('zh-CN', { hour12: false }) : '—'
 }
+function itemImage(index: number) {
+  const entry = catalog.value.find(item => item.index === index)
+  return entry?.image || ''
+}
 
 async function refresh() {
   if (!accountId.value || busy.value) return
@@ -178,8 +182,11 @@ onUnmounted(() => {
           </div>
         </div>
         <div class="rounded-lg bg-white/15 p-3">
-          <div class="text-xs text-white/70">
+          <div class="flex items-center justify-center gap-1 text-xs text-white/70">
+            <img v-if="activity?.luckCoin.image" :src="activity.luckCoin.image" :alt="activity.luckCoin.name" class="h-5 w-5 object-contain">
+            <span>
             福气币
+            </span>
           </div>
           <div class="mt-1 text-xl font-semibold">
             {{ activity?.luckCoin.balanceKnown ? fmt(luckCoin) : '—' }}
@@ -189,8 +196,11 @@ onUnmounted(() => {
           </div>
         </div>
         <div class="rounded-lg bg-white/15 p-3">
-          <div class="text-xs text-white/70">
+          <div class="flex items-center justify-center gap-1 text-xs text-white/70">
+            <img v-if="activity?.sweetPotato.image" :src="activity.sweetPotato.image" :alt="activity.sweetPotato.name" class="h-5 w-5 object-contain">
+            <span>
             背包蜜薯
+            </span>
           </div>
           <div class="mt-1 text-xl font-semibold">
             {{ activity?.sweetPotato.balanceKnown ? fmt(sweetPotatoCount) : '—' }}
@@ -223,6 +233,16 @@ onUnmounted(() => {
       {{ store.error }}
     </div>
     <template v-else-if="activity">
+      <section v-if="activity.rules.length" class="rounded-xl bg-white p-4 shadow-sm dark:bg-gray-800">
+        <h2 class="text-sm font-semibold">
+          活动说明
+        </h2>
+        <ul class="mt-2 list-disc space-y-1 pl-5 text-sm text-gray-600 dark:text-gray-300">
+          <li v-for="(rule, index) in activity.rules" :key="index">
+            {{ rule }}
+          </li>
+        </ul>
+      </section>
       <div v-if="activity.balanceStale" class="rounded-lg bg-amber-50 p-3 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
         背包余额暂时读不到，展示的是上次成功读取的数值，请勿据此重复提交。
       </div>
@@ -271,6 +291,7 @@ onUnmounted(() => {
           </div>
           <div class="mt-4 flex flex-wrap gap-2">
             <BaseButton variant="primary" size="sm" :disabled="activity.daily.seedClaimed || !activity.actions.claimSeed.enabled" :loading="store.pending === 'seed/claim'" @click="claimSeed">
+              <img v-if="activity.seed.image" :src="activity.seed.image" :alt="activity.seed.name" class="mr-1 inline-block h-5 w-5 object-contain">
               {{ activity.daily.seedClaimed ? '今日种子已领' : '领取红薯种子' }}
             </BaseButton>
             <BaseButton variant="secondary" size="sm" :disabled="activity.daily.shared || !activity.actions.share.enabled" :loading="store.pending === 'share'" @click="share">
@@ -353,8 +374,11 @@ onUnmounted(() => {
         </div>
         <div v-else class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <div v-for="entry in catalog" :key="entry.index" class="flex flex-col rounded-lg border border-gray-200 p-4 dark:border-gray-700">
-            <div class="text-sm font-medium">
+            <div class="flex items-center gap-2 text-sm font-medium">
+              <img v-if="itemImage(entry.index)" :src="itemImage(entry.index)" :alt="entry.name" class="h-10 w-10 shrink-0 object-contain">
+              <span>
               {{ entry.name || `第 ${entry.index} 档` }}
+              </span>
             </div>
             <div class="mt-2 text-xs text-gray-500">
               {{ fmt(entry.price) }} 福气币 · 限 {{ fmt(entry.limit) }} 份
