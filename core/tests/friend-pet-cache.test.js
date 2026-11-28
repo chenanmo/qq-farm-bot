@@ -23,16 +23,21 @@ const {
 const { collectPendingFriends, planNextSyncPacing, FRIEND_PET_SYNC_TUNING } = require('../dist/services/friend/pet-sync');
 const { buildFriendPetView } = require('../dist/services/friend/visit-strategy');
 const { getDataFile } = require('../dist/config/runtime-paths');
-const { getSystemDateKey } = require('../dist/utils/utils');
 
 function cacheFile() {
     const token = crypto.createHash('sha256').update(process.env.FARM_ACCOUNT_ID, 'utf8').digest('hex');
     return getDataFile(`friend-pet-${token}.json`);
 }
 
+function protectDogCacheFile() {
+    const token = crypto.createHash('sha256').update(process.env.FARM_ACCOUNT_ID, 'utf8').digest('hex');
+    return getDataFile(`friend-protect-dogs-${token}.json`);
+}
+
 function resetAll() {
     resetFriendPetCacheMemory();
     try { fs.rmSync(cacheFile()); } catch { /* 首次运行没有文件 */ }
+    try { fs.rmSync(protectDogCacheFile()); } catch { /* 首次运行没有文件 */ }
 }
 
 test.beforeEach(resetAll);
@@ -67,20 +72,32 @@ test('结论可以落盘并在重启后恢复', () => {
     assert.ok(isFullSyncDoneToday());
 });
 
-test('跳日的缓存一律作废，当天重新同步', () => {
+test('护主犬结论跨日保留，其他狗与无狗跨日作废', () => {
     recordFriendDog(4001, PROTECT_DOG_ID);
+    recordFriendDog(4002, 90001);
+    recordFriendDog(4003, 0);
     markFullSyncDone();
     flushFriendPetCacheNow();
 
+    // 把两份缓存都改成「昨天」，模拟跨日重启。
+    const yesterday = '2000-01-01';
     const file = cacheFile();
     const state = JSON.parse(fs.readFileSync(file, 'utf8'));
-    assert.equal(state.entries['4001'].date, getSystemDateKey());
-    state.lastFullSyncDate = '2000-01-01';
-    state.entries['4001'].date = '2000-01-01';
+    state.lastFullSyncDate = yesterday;
+    for (const entry of Object.values(state.entries)) entry.date = yesterday;
     fs.writeFileSync(file, JSON.stringify(state));
+    const protectFile = protectDogCacheFile();
+    const protectState = JSON.parse(fs.readFileSync(protectFile, 'utf8'));
+    for (const entry of Object.values(protectState.entries)) entry.date = yesterday;
+    fs.writeFileSync(protectFile, JSON.stringify(protectState));
 
     resetFriendPetCacheMemory();
-    assert.equal(getFriendDogState(4001), 'unknown');
+    // 护主犬在单独缓存里跨日保留；其他狗/无狗当天必须重新确认。
+    assert.equal(getFriendDogState(4001), 'protect');
+    assert.equal(getFriendDogId(4001), PROTECT_DOG_ID);
+    assert.equal(isFriendDogKnownToday(4001), false);
+    assert.equal(getFriendDogState(4002), 'unknown');
+    assert.equal(getFriendDogState(4003), 'unknown');
     assert.equal(isFullSyncDoneToday(), false);
 });
 
@@ -111,6 +128,49 @@ test('每日同步只选当天未确认、非黑名单、非失效的好友', ()
 
     const pending = collectPendingFriends(friends, 6005, new Set([6003]), new Set([6004]));
     assert.deepEqual(pending, [{ gid: 6001, name: '待确认' }]);
+});
+
+test('已验证有护主犬的好友跨日跳过同步，其余好友重新确认', () => {
+    recordFriendDog(6101, PROTECT_DOG_ID);
+    recordFriendDog(6102, 90001);
+    flushFriendPetCacheNow();
+
+    // 模拟跨日：当天结论作废，但护主犬单独缓存保留。
+    const file = cacheFile();
+    const state = JSON.parse(fs.readFileSync(file, 'utf8'));
+    for (const entry of Object.values(state.entries)) entry.date = '2000-01-01';
+    fs.writeFileSync(file, JSON.stringify(state));
+    resetFriendPetCacheMemory();
+
+    const friends = [
+        { gid: 6101, name: '护主犬' },
+        { gid: 6102, name: '田园犬' },
+        { gid: 6103, name: '未确认' },
+    ];
+    const pending = collectPendingFriends(friends, 0, new Set(), new Set());
+    // 6101 已确认护主犬，直接跳过；6102/6103 重新纳入每日同步。
+    assert.deepEqual(pending.map(entry => entry.gid), [6102, 6103]);
+});
+
+test('再次进入好友农场看到别的狗时，护主犬验证结论被推翻', () => {
+    recordFriendDog(6201, PROTECT_DOG_ID);
+    flushFriendPetCacheNow();
+    assert.equal(getFriendDogState(6201), 'protect');
+
+    recordFriendDog(6201, 90001);
+    assert.equal(getFriendDogState(6201), 'other');
+    flushFriendPetCacheNow();
+
+    // 跨日后这条护主犬结论不该再保留，重新纳入每日同步。
+    const file = cacheFile();
+    const state = JSON.parse(fs.readFileSync(file, 'utf8'));
+    for (const entry of Object.values(state.entries)) entry.date = '2000-01-01';
+    fs.writeFileSync(file, JSON.stringify(state));
+    resetFriendPetCacheMemory();
+
+    const friends = [{ gid: 6201, name: '换狗了' }];
+    const pending = collectPendingFriends(friends, 0, new Set(), new Set());
+    assert.deepEqual(pending.map(entry => entry.gid), [6201]);
 });
 
 test('每日同步的突发量被压在服务端限制之下', () => {

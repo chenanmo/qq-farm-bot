@@ -220,6 +220,9 @@ const ranchFeedStages = [
               <BaseSwitch v-model="settings.automation.fertilizer_gift" class="automation-setting-item" label="自动填充化肥" />
             </div>
             <div class="automation-setting-item">
+              <BaseSwitch v-model="settings.automation.pet_guard_dog_auto_switch" class="automation-setting-item" label="宠物自动切换" />
+            </div>
+            <div class="automation-setting-item">
               <HourInput
                 v-model="settings.emailClaimHour"
                 class="w-full"
@@ -228,6 +231,9 @@ const ranchFeedStages = [
               />
             </div>
           </div>
+          <p v-if="settings.automation.pet_guard_dog_auto_switch" class="mt-3 text-xs text-gray-500 dark:text-gray-400">
+            护主犬今日的「同气连枝」礼包次数用完后自动换比熊上场；次日次数恢复或检测到还有礼包次数时自动换回护主犬。需要同时拥有护主犬和比熊。
+          </p>
         </section>
 
         <section class="farm-card rounded-2xl p-4">

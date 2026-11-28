@@ -1566,7 +1566,7 @@ async function handleBatchAddKnownFriendGids() {
     <NModal :show="showPetCacheModal" @update:show="showPetCacheModal = $event">
       <NCard class="gid-list-card" title="好友宠物缓存" :bordered="false" closable @close="showPetCacheModal = false">
         <p class="mt-0 text-sm text-gray-500 dark:text-gray-400">
-          已缓存 {{ petCacheEntries.length }} 位好友。清空后，后续巡查或宠物同步会重新确认。
+          已缓存 {{ petCacheEntries.length }} 位好友。已验证有护主犬的好友会跨日保留，每日同步直接跳过；其余好友每天重新确认。清空后会重新同步。
         </p>
         <div class="mb-4 flex justify-end">
           <NButton type="error" secondary :loading="petCacheClearing" :disabled="petCacheEntries.length === 0" @click="clearPetCache">
@@ -1583,7 +1583,10 @@ async function handleBatchAddKnownFriendGids() {
             <div v-for="entry in petCacheEntries" :key="entry.gid" class="flex items-center justify-between border rounded-lg p-3">
               <div class="min-w-0">
                 <div class="truncate text-sm font-medium">{{ petCacheFriendsByGid.get(Number(entry.gid))?.name || `GID:${entry.gid}` }}</div>
-                <div class="text-xs text-gray-500">GID {{ entry.gid }} · {{ entry.state === 'protect' ? '护主犬' : entry.state === 'none' ? '无宠物' : `宠物 #${entry.dogId}` }}</div>
+                <div class="text-xs text-gray-500">
+                  GID {{ entry.gid }} · {{ entry.state === 'protect' ? '护主犬' : entry.state === 'none' ? '无宠物' : `宠物 #${entry.dogId}` }}
+                  <span v-if="entry.verified" class="ml-1 text-emerald-600 dark:text-emerald-400">已验证</span>
+                </div>
               </div>
               <div class="ml-3 shrink-0 text-right text-xs text-gray-500">{{ entry.date }}{{ entry.checkedAt ? ` · ${new Date(entry.checkedAt).toLocaleString()}` : '' }}</div>
             </div>

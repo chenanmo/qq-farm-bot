@@ -551,6 +551,32 @@ function startBusinessLoops(): void {
     startUnifiedScheduler();
     startDailyRoutineTimer(false);
     startMysteryShopTimer();
+    startPetDogSwitchTimer();
+}
+
+function runPetDogSwitchTick(): Promise<void> {
+    if (!loginReady) return Promise.resolve();
+    const { runPetDogSwitch } = require('../services/pet-dog-switch');
+    return runExclusiveAutomationTask('pet_dog_switch', () => runPetDogSwitch())
+        .then(() => undefined)
+        .catch(() => null);
+}
+
+/**
+ * 护主犬礼包次数用完切比熊 / 次数恢复切回护主犬。
+ * 只读一次 GetDogInfo，真正切换时才发 DeployDog；开关关闭时一个 RPC 都不发。
+ */
+function startPetDogSwitchTimer(): void {
+    const { CHECK_INTERVAL_MS, INITIAL_DELAY_MS } = require('../services/pet-dog-switch');
+    workerScheduler.clear('pet_dog_switch_initial');
+    workerScheduler.clear('pet_dog_switch_interval');
+    if (!loginReady || !getAutomation()?.pet_guard_dog_auto_switch) return;
+    workerScheduler.setTimeoutTask('pet_dog_switch_initial', INITIAL_DELAY_MS, () => {
+        void runPetDogSwitchTick();
+    });
+    workerScheduler.setIntervalTask('pet_dog_switch_interval', CHECK_INTERVAL_MS, () => {
+        void runPetDogSwitchTick();
+    });
 }
 
 function runMysteryShopTick(): Promise<void> {
@@ -648,6 +674,9 @@ function applyRuntimeConfig(snapshot: any, syncNow: boolean = false): number {
             }
 
             startMysteryShopTimer();
+            if (!!prevAuto?.pet_guard_dog_auto_switch !== !!nextAuto?.pet_guard_dog_auto_switch) {
+                startPetDogSwitchTimer();
+            }
         }
     }
 
@@ -1221,6 +1250,12 @@ async function handleApiCall(msg: any): Promise<void> {
                     break;
                 case 'shareYishuHuanfuShop':
                     result = await require('../services/activity-center').shareYishuHuanfuShop();
+                    break;
+                case 'importYishuHuanfuShareKey':
+                    result = await require('../services/activity-center').importYishuHuanfuShareKey(args[0], args[1]);
+                    break;
+                case 'forgetYishuHuanfuShareKey':
+                    result = await require('../services/activity-center').forgetYishuHuanfuShareKey(args[0]);
                     break;
                 case 'claimCharityRedFlowerSeeds':
                     result = await require('../services/activity-center').claimCharityRedFlowerSeeds();

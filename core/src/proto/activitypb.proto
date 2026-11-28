@@ -139,19 +139,68 @@ message YshfState {
     int64 pending_commission = 11;
     int64 commission_flag = 13;
 }
-message YshfCatalogGoods { int64 index = 1; int64 price = 2; int64 status = 3; int64 limit = 4; int64 field_5 = 5; int64 field_6 = 6; int64 field_7 = 7; }
+message YshfCatalogGoods {
+    int64 index = 1;
+    int64 price = 2;
+    int64 status = 3;
+    // 该档限购总数，界面「限购 x/y」的分母。
+    int64 limit = 4;
+    // 5 号位在本轮抓包里始终缺失，语义未取证。
+    int64 field_5 = 5;
+    // 该档累计已兑换次数。2026-11-28 抓包实证：limit 28、此处 13 → 界面 15/28；
+    // 再兑 3 次后 cmd 96 回包给 16 → 界面 12/28。剩余可兑 = limit − exchanged。
+    int64 exchanged = 6;
+    int64 field_7 = 7;
+}
 message YshfCatalog { repeated YshfCatalogGoods goods = 1; int64 field_2 = 2; }
 message YshfGrant { int64 item_id = 1; int64 count = 2; }
 message YshfGrantReply { YshfGrant grant = 1; }
 message YshfShopBrief { int64 gid = 1; string name = 2; string avatar = 3; int64 level = 4; }
-message YshfSelfShop { int64 gid = 1; string share_key = 2; string avatar = 3; int64 level = 4; bytes field_5 = 5; }
+// cmd 92 / cmd 93 里的「好友铺子分享标识」。
+// 2026-11-28 起，卖薯给别人必须原样回传对方当天分享卡片里的 share_key，
+// 只带 gid 的旧方式不再成交。share_key 是带连字符的 UUID，
+// 与 FriendService.GetShareKey 返回的 32 位十六进制邀请码不是同一个值。
+message YshfShopRef {
+    int64 activity_id = 1;
+    int64 gid = 2;
+    string share_key = 3;
+}
+// 分享回包（cmd 98）里的本人铺子信息。2 号位是 32 位邀请码，不是分享标识；
+// 真正要回传的是 5 号位 shop_ref。
+message YshfSelfShop {
+    int64 gid = 1;
+    string invite_key = 2;
+    string openid_hash = 3;
+    int64 field_4 = 4;
+    YshfShopRef shop_ref = 5;
+    int64 field_6 = 6;
+}
 message YshfShopQuote { int64 base_price = 1; int64 bonus_price = 2; int64 quota = 3; YshfShopBrief shop = 4; }
 message YshfShopQueryReply { YshfShopQuote quote = 1; bool can_sell = 2; }
 message YshfSellReply { int64 count = 1; int64 price = 2; int64 total = 3; int64 quota = 4; int64 balance = 5; }
 message YshfShareReply { YshfGrant grant = 1; int64 price = 2; int64 field_3 = 3; YshfSelfShop shop = 4; int64 field_5 = 5; int64 field_6 = 6; }
 message YshfClaimSeedRequest { int64 activity_id = 1; int64 cmd = 2; YshfEmpty params = 191; }
-message YshfShopQueryRequest { message Params { int64 shop_gid = 1; } int64 activity_id = 1; int64 cmd = 2; Params params = 192; }
-message YshfSellRequest { message Params { int64 shop_gid = 1; int64 count = 2; } int64 activity_id = 1; int64 cmd = 2; Params params = 193; }
+// 查好友铺子时带上对方当天的分享标识；查自己铺子时不带。
+message YshfShopQueryRequest {
+    message Params {
+        int64 shop_gid = 1;
+        YshfShopRef shop = 2;
+    }
+    int64 activity_id = 1;
+    int64 cmd = 2;
+    Params params = 192;
+}
+// 卖给好友铺子时必带对方当天的分享标识；卖给自己铺子时不带。
+message YshfSellRequest {
+    message Params {
+        int64 shop_gid = 1;
+        int64 count = 2;
+        YshfShopRef shop = 3;
+    }
+    int64 activity_id = 1;
+    int64 cmd = 2;
+    Params params = 193;
+}
 message YshfRecordRequest { int64 activity_id = 1; int64 cmd = 2; YshfEmpty params = 195; }
 message YshfPurchaseRecord { int64 timestamp = 1; int64 gid = 2; int64 count = 3; int64 total = 4; string name = 6; string avatar = 7; int64 level = 8; int64 commission = 9; }
 message YshfRecordReply { repeated YshfPurchaseRecord records = 1; }
@@ -159,7 +208,15 @@ message YshfClaimCommissionRequest { int64 activity_id = 1; int64 cmd = 2; YshfE
 message YshfCommissionReply { int64 amount = 1; int64 field_3 = 3; int64 balance = 4; }
 message YshfExchangeRequest { message Params { int64 index = 1; int64 count = 2; } int64 activity_id = 1; int64 cmd = 2; Params params = 196; }
 message YshfExchangeGrant { int64 item_id = 1; int64 count = 2; int64 field_3 = 3; int64 field_6 = 6; int64 field_7 = 7; }
-message YshfExchangeReply { int64 price = 1; YshfExchangeGrant grant = 2; int64 balance = 3; int64 field_4 = 4; int64 field_5 = 5; }
+message YshfExchangeReply {
+    int64 price = 1;
+    YshfExchangeGrant grant = 2;
+    int64 balance = 3;
+    // 本次兑换次数，与请求 count 一致。
+    int64 count = 4;
+    // 兑换后该档累计已兑换次数，与 cmd 97 的 exchanged 同源。
+    int64 exchanged = 5;
+}
 message YshfCatalogRequest { int64 activity_id = 1; int64 cmd = 2; YshfEmpty params = 197; }
 message YshfShareRequest { int64 activity_id = 1; int64 cmd = 2; YshfEmpty params = 198; }
 

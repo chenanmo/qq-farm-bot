@@ -33,7 +33,10 @@ export interface YshfCatalogEntry {
   price: string
   status: number
   limit: string
-  exchangedToday: string
+  /** 累计已兑换次数（cmd 97 field 6）；剩余 = limit − exchanged。 */
+  exchanged: string
+  /** 剩余可兑换次数，后端按 limit − exchanged 算好下发，界面只认这个。 */
+  remaining: string
   image: string
   exchangeable: boolean
 }
@@ -52,6 +55,10 @@ export interface YshfFriendShop {
   quotaUsed: string
   canSell: boolean | null
   unlimited: boolean
+  /** 是否拿到对方当天的分享标识。false = 只能看价、卖不进去（2026-11-28 起服务端校验）。 */
+  shareKeyKnown: boolean
+  /** 该铺子今天落盘的分享标识（自己那条也会下发，方便对照别人贴进来的链接）。 */
+  shareKey: string
 }
 
 export interface YshfRecord {
@@ -94,7 +101,7 @@ export interface YshfActivity {
   commission: { pending: string, claimable: boolean, flag: string }
   balanceError: string
   balanceStale: boolean
-  daily: { dateKey: string, seedClaimed: boolean, shared: boolean, sharedToday: boolean }
+  daily: { dateKey: string, seedClaimed: boolean, shared: boolean, sharedToday: boolean, shareKeySaved: boolean }
   actions: {
     claimSeed: YshfAction
     sell: YshfAction
@@ -161,7 +168,9 @@ function normalizeCatalogEntry(entry: Record<string, any>): YshfCatalogEntry {
     price: text(entry.price),
     status: finiteNumber(entry.status),
     limit: text(entry.limit),
-    exchangedToday: text(entry.exchangedToday, entry.exchanged_today, '0'),
+    exchanged: text(entry.exchanged, entry.exchangedToday, entry.exchanged_today, '0'),
+    // 旧后端没有 remaining 时退化成 limit，避免界面显示 0。
+    remaining: text(entry.remaining, entry.remainingCount, entry.remaining_count, '') || text(entry.limit),
     image: text(entry.image),
     // 后端没带 exchangeable 时按可兑处理，价格够不够由渲染层再判一次。
     exchangeable: entry.exchangeable === null || entry.exchangeable === undefined
@@ -222,6 +231,8 @@ function normalizeActivity(value: unknown): YshfActivity | null {
       seedClaimed: bool(daily.seedClaimed, daily.seed_claimed),
       shared: bool(daily.shared),
       sharedToday: bool(daily.sharedToday, daily.shared_today, daily.quoteGeneratedToday, daily.quote_generated_today),
+      // 今天这串分享标识是否已落盘。false 时即使已分享也允许再点一次补标识（只有标识、无奖励）。
+      shareKeySaved: bool(daily.shareKeySaved, daily.share_key_saved),
     },
     actions: {
       claimSeed: normalizeAction(actions, 'claimSeed'),
@@ -454,12 +465,19 @@ export const useYishuHuanfuStore = defineStore('yishuhuanfu', () => {
           quotaUsed: text(entry.quotaUsed, entry.quota_used),
           canSell: entry.canSell === undefined || entry.canSell === null ? null : bool(entry.canSell, entry.can_sell),
           unlimited: bool(entry.unlimited) || bool(entry.own),
+          // 后端没带 shareKeyKnown 时按「有标识」处理，避免旧后端下整排铺子被标成不可卖。
+          shareKeyKnown: entry.shareKeyKnown === undefined || entry.shareKeyKnown === null
+            ? true
+            : bool(entry.shareKeyKnown, entry.share_key_known),
+          shareKey: text(entry.shareKey, entry.share_key),
         }
       })
       friendScanAt.value = finiteNumber(payload.scannedAt ?? payload.scanned_at) || Date.now()
       const scanned = finiteNumber(payload.scanned)
       const failed = finiteNumber(payload.failed)
-      notes.value.friends = text(payload.friendListError, payload.friend_list_error)
+      // 后端会说明候选池为空/链接失效等原因，优先展示它。
+      notes.value.friends = text(payload.message)
+        || text(payload.friendListError, payload.friend_list_error)
         || (scanned === 0 ? '没有可查询的好友铺子'
           : `已扫描 ${friendShops.value.length} 个铺子${failed ? `，${failed} 个查询失败` : ''}`)
       return true
@@ -500,12 +518,72 @@ export const useYishuHuanfuStore = defineStore('yishuhuanfu', () => {
     }
   }
 
+  /**
+   * 手动导入好友当天分享标识（贴分享链接/卡片文本，或直接填 UUID / 32 位十六进制）。
+   * 服务端没有按 gid 反查好友标识的接口，面板外的真人好友只能靠这个入口变得可售。
+   */
+  async function importShareKey(gid: string, raw: string, id = accountId) {
+    const targetId = String(id || '').trim()
+    const shopGid = String(gid || '').trim()
+    const shareText = String(raw || '').trim()
+    if (!targetId) return false
+    if (!shopGid || !shareText) {
+      error.value = '需要同时填写铺主 GID 和对方的分享标识'
+      return false
+    }
+    if (pending.value) return false
+    pending.value = 'share-key'
+    error.value = ''
+    try {
+      const { data } = await api.post(`${ACTIVITY_API}/share-key`, { gid: shopGid, text: shareText }, { headers: headers(targetId) })
+      if (!data?.ok) throw new Error(text(data?.error, '导入分享标识失败'))
+      // 标识变了，「这家能不能卖」要重算：强制重扫比价列表。
+      await scanFriendShops(targetId, true)
+      return true
+    }
+    catch (err: any) {
+      error.value = errorMessage(err, '导入分享标识失败')
+      return false
+    }
+    finally {
+      pending.value = ''
+    }
+  }
+
+  /**
+   * 把某家铺子移出比价列表：比价池由标识存档决定，删掉这条就没了。
+   * 面板账号下次分享会重新落盘，所以这不是永久屏蔽。
+   */
+  async function forgetShareKey(gid: string, id = accountId) {
+    const targetId = String(id || '').trim()
+    const shopGid = String(gid || '').trim()
+    if (!targetId || !shopGid) return false
+    if (pending.value) return false
+    pending.value = 'share-key-remove'
+    error.value = ''
+    try {
+      const { data } = await api.post(`${ACTIVITY_API}/share-key/remove`, { gid: shopGid }, { headers: headers(targetId) })
+      if (!data?.ok) throw new Error(text(data?.error, '移出比价失败'))
+      friendShops.value = friendShops.value.filter(shop => shop.gid !== shopGid)
+      await scanFriendShops(targetId, true)
+      return true
+    }
+    catch (err: any) {
+      error.value = errorMessage(err, '移出比价失败')
+      return false
+    }
+    finally {
+      pending.value = ''
+    }
+  }
+
   return {
     state, catalog, recordsList, friendShops, friendScanAt, notes,
     loading, pending, error, needsRefresh,
     loadingCatalog, loadingRecords, loadingFriends,
     walletKnown, sweetPotatoCount, luckCoinBalance,
-    load, loadCatalog, loadRecords, loadShop, scanFriendShops, operate, clear,
+    load, loadCatalog, loadRecords, loadShop, scanFriendShops, operate,
+    importShareKey, forgetShareKey, clear,
   }
 })
 

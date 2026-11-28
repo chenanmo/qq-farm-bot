@@ -27,11 +27,12 @@ const { getAllFriends, enterFriendFarm, leaveFriendFarm } = require('./api');
 const { canScanFriend, extractReplyFriends, getInvalidKnownFriendGidSet } = require('./gid-manager');
 const {
     isFriendDogKnownToday,
-    hasCachedDog,
     isFullSyncDoneToday,
     markFullSyncDone,
     getFriendPetCacheStats,
 } = require('./pet-cache');
+// 已经验证有护主犬的好友单独记在跨日缓存里，每日同步直接跳过。
+const { isProtectDogVerified } = require('./protect-dog-cache');
 
 // 延迟引用，避开 scheduler / visit-strategy 之间已有的循环依赖
 let _scheduler: any = null;
@@ -217,8 +218,10 @@ export function collectPendingFriends(friends: any[], myGid: number, blacklist: 
         if (seen.has(gid)) continue;
         seen.add(gid);
         if (blacklist.has(gid) || invalid.has(gid) || !canScanFriend(gid)) continue;
-        // 当天已经有结论的不重复同步（包括帮忙/偷菜/天气扫描顺手写入的）
-        if (isFriendDogKnownToday(gid) || hasCachedDog(gid)) continue;
+        // 当天已经有结论的不重复同步（包括帮忙/偷菜/天气扫描顺手写入的）。
+        // 已经验证有护主犬的好友记在单独的跨日缓存里，后续每日同步直接跳过；
+        // 其余好友（包括昨天看过是别的狗/没有狗的）重新确认。
+        if (isFriendDogKnownToday(gid) || isProtectDogVerified(gid)) continue;
         pending.push({ gid, name: friend.remark || friend.name || `GID:${gid}` });
     }
     return pending;

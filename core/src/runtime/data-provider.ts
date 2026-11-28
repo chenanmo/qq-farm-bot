@@ -206,6 +206,12 @@ function createDataProvider(options: DataProviderOptions) {
         scanYishuHuanfuFriendShops: (accountRef: string, options: unknown) => callWorkerApi(resolveAccountRefId(accountRef), 'scanYishuHuanfuFriendShops', options),
         exchangeYishuHuanfuGoods: (accountRef: string, index: unknown, count: unknown) => callWorkerApi(resolveAccountRefId(accountRef), 'exchangeYishuHuanfuGoods', index, count),
         shareYishuHuanfuShop: (accountRef: string) => callWorkerApi(resolveAccountRefId(accountRef), 'shareYishuHuanfuShop'),
+        importYishuHuanfuShareKey: (accountRef: string, gid: unknown, text: unknown) => (
+            callWorkerApi(resolveAccountRefId(accountRef), 'importYishuHuanfuShareKey', gid, text)
+        ),
+        forgetYishuHuanfuShareKey: (accountRef: string, gid: unknown) => (
+            callWorkerApi(resolveAccountRefId(accountRef), 'forgetYishuHuanfuShareKey', gid)
+        ),
         claimCharityRedFlowerSeeds: (accountRef: string) => callWorkerApi(resolveAccountRefId(accountRef), 'claimCharityRedFlowerSeeds'),
         donateCharityRedFlowerLove: (accountRef: string) => callWorkerApi(resolveAccountRefId(accountRef), 'donateCharityRedFlowerLove'),
         claimCharityRedFlowerDailyGift: (accountRef: string) => callWorkerApi(resolveAccountRefId(accountRef), 'claimCharityRedFlowerDailyGift'),

@@ -338,8 +338,8 @@ export function analyzeFriendLands(lands: any[], myGid: number, friendName: stri
 export type FriendPetState = 'protect' | 'other' | 'none' | 'unknown';
 
 /**
- * 好友上场宠物的展示信息，数据全部来自按天缓存（进好友农场时顺手写入 + 每日同步补齐），
- * 为了展示不会额外发任何 RPC；当天还没确认过的好友是 unknown，交由每日同步补齐。
+ * 好友上场宠物的展示信息，数据全部来自缓存（进好友农场时顺手写入 + 每日同步补齐），
+ * 为了展示不会额外发任何 RPC；当天还没确认过、也没有历史护主犬结论的好友是 unknown。
  */
 export function buildFriendPetView(friendGid: any): { petState: FriendPetState; pet: any } {
     if (getFriendDogState(friendGid) === 'unknown') return { petState: 'unknown', pet: null };
@@ -777,8 +777,9 @@ export async function visitFriend(
     const protectDogBypassEnabled: boolean = !!isAutomationOn('friend_help_protect_dog_ignore_exp_limit');
     const expLimitReachedBeforeVisit: boolean = stopWhenExpLimit && !schedulerRef().getCanGetHelpExp();
     // 经验满之后唯一还值得帮忙的对象是挂着护主犬的好友（同气连枝礼包）。
-    // 护主犬只能从 Enter 回包读到，所以这里只查当天缓存，不再逐个进农场试探；
-    // 缓存还没结论的好友交给 pet-sync 的每日同步补齐。
+    // 护主犬只能从 Enter 回包读到，所以这里只查缓存，不再逐个进农场试探；
+    // 当天没结论、但历史验证过护主犬的好友同样算数（见 protect-dog-cache），
+    // 其余没结论的好友交给 pet-sync 的每日同步补齐。
     const helpBlockedByExpLimit: boolean = expLimitReachedBeforeVisit
         && (!protectDogBypassEnabled || getFriendDogState(gid) !== 'protect');
     const helpEnabled: boolean = options.allowHelp !== false

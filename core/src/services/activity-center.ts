@@ -20,7 +20,6 @@ const { createQixiActivityService } = require('./activity-center/qixi');
 const { createQingMeiActivityService } = require('./activity-center/qingmei');
 const { createPetDiaryService } = require('./activity-center/pet-diary');
 const { createYishuHuanfuActivityService } = require('./activity-center/yishuhuanfu');
-const { getAllFriends } = require('./friend/api');
 const {
     createEmptyCharityRedFlowerState,
     loadCharityRedFlowerState,
@@ -559,7 +558,7 @@ const yishuHuanfuService = createYishuHuanfuActivityService({
     types, sendMsgAsync, getBag, getSystemDateKey, getServerTimeSec,
     int64String, int64Number, bytesToText, itemDto, getItemImageById, textContent,
     businessError, positiveDecimal, activityWindowIsActive, readBagBalances,
-    serializeMutation, getActivityCenterSnapshot, getUserState: getNetworkUserState, getAllFriends,
+    serializeMutation, getActivityCenterSnapshot, getUserState: getNetworkUserState,
 });
 
 async function getCurrentYishuHuanfuActivity() {
@@ -588,6 +587,8 @@ module.exports = {
     scanYishuHuanfuFriendShops: yishuHuanfuService.scanYishuHuanfuFriendShops,
     exchangeYishuHuanfuGoods: yishuHuanfuService.exchangeYishuHuanfuGoods,
     shareYishuHuanfuShop: yishuHuanfuService.shareYishuHuanfuShop,
+    importYishuHuanfuShareKey: yishuHuanfuService.importYishuHuanfuShareKey,
+    forgetYishuHuanfuShareKey: yishuHuanfuService.forgetYishuHuanfuShareKey,
     charityRedFlowerDto,
     reconcileCharityProgressState,
     buildActivityDirectory,

@@ -28,6 +28,8 @@ export interface AutomationConfig extends RanchAutomationConfig {
   friend_help: boolean;
   friend_bad: boolean;
   friend_help_protect_dog_ignore_exp_limit: boolean;
+  /** 护主犬礼包次数用完切比熊，次数恢复再切回护主犬。 */
+  pet_guard_dog_auto_switch: boolean;
   task: boolean;
   fertilizer_gift: boolean;
   fertilizer_buy_organic: boolean;
